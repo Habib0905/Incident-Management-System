@@ -139,7 +139,12 @@ export default function IncidentDetail({ params }: PageProps) {
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
                   {canEdit && (
                     <Button
-                      onClick={() => { setShowStatusForm(!showStatusForm); setStatus(incident.status); }}
+                      onClick={() => { 
+                        setShowAssignForm(false);
+                        setShowNoteForm(false);
+                        setShowStatusForm(!showStatusForm); 
+                        setStatus(incident.status); 
+                      }}
                       variant="secondary"
                       size="sm"
                     >
@@ -147,14 +152,22 @@ export default function IncidentDetail({ params }: PageProps) {
                     </Button>
                   )}
                   <Button
-                    onClick={() => setShowAssignForm(!showAssignForm)}
+                    onClick={() => { 
+                      setShowStatusForm(false);
+                      setShowNoteForm(false);
+                      setShowAssignForm(!showAssignForm);
+                    }}
                     variant="secondary"
                     size="sm"
                   >
                     {incident.assigned_to ? 'Reassign' : 'Assign'}
                   </Button>
                   <Button
-                    onClick={() => setShowNoteForm(!showNoteForm)}
+                    onClick={() => { 
+                      setShowStatusForm(false);
+                      setShowAssignForm(false);
+                      setShowNoteForm(!showNoteForm);
+                    }}
                     variant="secondary"
                     size="sm"
                   >
