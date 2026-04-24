@@ -10,7 +10,6 @@ import {
   CardTitle,
   CardContent,
   Button,
-  Input,
   Select,
   Textarea,
   SeverityBadge,
@@ -230,6 +229,37 @@ export default function IncidentDetail({ params }: PageProps) {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Related Logs ({incident.logs?.length || 0})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!incident.logs || incident.logs.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">No logs attached</div>
+              ) : (
+                <div className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
+                  {incident.logs.map((log) => (
+                    <div key={log.id} className="p-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          log.log_level === 'error' ? 'bg-red-100 text-red-800' :
+                          log.log_level === 'warning' ? 'bg-amber-100 text-amber-800' :
+                          log.log_level === 'info' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {log.log_level?.toUpperCase() || 'UNKNOWN'}
+                        </span>
+                        <span className="text-xs text-gray-500">{log.source}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{formatDate(log.timestamp)}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 mt-1 font-mono">{log.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -241,7 +271,7 @@ export default function IncidentDetail({ params }: PageProps) {
               {!timeline || timeline.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">No activity yet</div>
               ) : (
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
                   {timeline.map((event) => (
                     <div key={event.id} className="p-4">
                       <p className="text-sm text-gray-900">
