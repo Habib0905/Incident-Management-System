@@ -1,0 +1,34 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class ActivityTimeline extends Model
+{
+    protected $table = 'activity_timeline';
+    
+    protected $fillable = [
+        'incident_id',
+        'user_id',
+        'event_type',
+        'note',
+        'created_at'
+    ];
+
+    public $timestamps = false;
+
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
+    public function incident()
+    {
+        return $this->belongsTo(Incident::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
