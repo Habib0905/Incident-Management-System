@@ -13,7 +13,8 @@ import {
   User,
   Bell,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useUnreadCount } from '@/hooks';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,28 +26,7 @@ const navItems = [
 export function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
   const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    async function fetchUnreadCount() {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/me/unread-count`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUnreadCount(data.unread_count);
-        }
-      } catch (e) {
-        console.log('Failed to fetch unread count');
-      }
-    }
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data: unreadCount = 0 } = useUnreadCount({ refetchInterval: 5000 });
 
   const filteredNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 

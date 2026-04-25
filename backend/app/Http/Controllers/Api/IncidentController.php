@@ -78,10 +78,10 @@ class IncidentController extends Controller
         $incident->load(['server', 'creator', 'assignedUser', 'logs', 'activityLogs.user']);
         
         $isViewed = $this->viewService->isViewed($incident, $user);
+        $incident->is_viewed = $isViewed;
 
         return response()->json([
             'incident' => $incident,
-            'has_viewed' => $isViewed,
         ]);
     }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers } from '@/hooks';
 import { useAuth } from '@/store/auth';
@@ -49,6 +49,12 @@ export default function IncidentDetail({ params }: PageProps) {
   const [status, setStatus] = useState('');
   const [assignTo, setAssignTo] = useState('');
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (incident && !incident.is_viewed) {
+      markAsViewed.mutate(incidentId);
+    }
+  }, [incident, incidentId, markAsViewed]);
 
   if (isLoading) {
     return (

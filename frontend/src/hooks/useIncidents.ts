@@ -24,11 +24,12 @@ export function useMyIncidents() {
   });
 }
 
-export function useUnreadCount() {
+export function useUnreadCount(options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ['unread-count'],
     queryFn: () => incidentService.getUnreadCount(),
-    refetchInterval: 30000,
+    refetchInterval: options?.refetchInterval ?? 30000,
+    staleTime: 0,
   });
 }
 
@@ -89,8 +90,11 @@ export function useMarkAsViewed() {
 
   return useMutation({
     mutationFn: (id: number) => incidentService.markAsViewed(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
     },
   });
 }
