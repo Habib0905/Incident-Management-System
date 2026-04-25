@@ -4,6 +4,7 @@ import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers } from '@/hooks';
 import { useAuth } from '@/store/auth';
+import api from '@/lib/api';
 import {
   Card,
   CardHeader,
@@ -25,7 +26,9 @@ import {
   Clock,
   Loader2,
   Send,
+  ChevronDown,
 } from 'lucide-react';
+import { Log, LogsPagination } from '@/types';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -34,7 +37,7 @@ interface PageProps {
 export default function IncidentDetail({ params }: PageProps) {
   const { id } = use(params);
   const incidentId = parseInt(id);
-  const { data: incident, isLoading, error } = useIncident(id);
+  const { data, isLoading, error, refetch } = useIncident(id);
   const { data: timeline } = useTimeline(id);
   const { user, isAdmin } = useAuth();
   const { data: users } = useUsers();
@@ -50,11 +53,47 @@ export default function IncidentDetail({ params }: PageProps) {
   const [assignTo, setAssignTo] = useState('');
   const [note, setNote] = useState('');
 
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [logsPagination, setLogsPagination] = useState<LogsPagination | null>(null);
+  const [isLoadingMoreLogs, setIsLoadingMoreLogs] = useState(false);
+
+  const incident = data?.incident;
+  const hasMoreLogs = logsPagination ? logsPagination.current_page < logsPagination.total_pages : false;
+
+  useEffect(() => {
+    if (data?.logs) {
+      setLogs(data.logs);
+    }
+    if (data?.logs_pagination) {
+      setLogsPagination(data.logs_pagination);
+    }
+  }, [data]);
+
   useEffect(() => {
     if (incident && !incident.is_viewed) {
       markAsViewed.mutate(incidentId);
     }
   }, [incident, incidentId, markAsViewed]);
+
+  async function loadMoreLogs() {
+    if (!logsPagination || isLoadingMoreLogs) return;
+    
+    setIsLoadingMoreLogs(true);
+    try {
+      const nextPage = logsPagination.current_page + 1;
+      const response = await api.get(`/incidents/${id}`, {
+        params: { logs_page: nextPage, logs_per_page: logsPagination.per_page },
+      });
+      
+      const newLogs = response.data.logs || [];
+      setLogs((prev) => [...prev, ...newLogs]);
+      setLogsPagination(response.data.logs_pagination);
+    } catch (err) {
+      console.error('Failed to load more logs:', err);
+    } finally {
+      setIsLoadingMoreLogs(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -251,31 +290,49 @@ export default function IncidentDetail({ params }: PageProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Related Logs ({incident.logs?.length || 0})</CardTitle>
+              <CardTitle>
+                Related Logs ({logsPagination?.total || 0})
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {!incident.logs || incident.logs.length === 0 ? (
+              {logs.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">No logs attached</div>
               ) : (
-                <div className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
-                  {incident.logs.map((log) => (
-                    <div key={log.id} className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          log.log_level === 'error' ? 'bg-red-100 text-red-800' :
-                          log.log_level === 'warning' ? 'bg-amber-100 text-amber-800' :
-                          log.log_level === 'info' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {log.log_level?.toUpperCase() || 'UNKNOWN'}
-                        </span>
-                        <span className="text-xs text-gray-500">{log.source}</span>
-                        <span className="text-xs text-gray-400 ml-auto">{formatDate(log.timestamp)}</span>
+                <>
+                  <div className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
+                    {logs.map((log) => (
+                      <div key={log.id} className="p-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            log.log_level === 'error' ? 'bg-red-100 text-red-800' :
+                            log.log_level === 'warn' ? 'bg-amber-100 text-amber-800' :
+                            log.log_level === 'info' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {log.log_level?.toUpperCase() || 'UNKNOWN'}
+                          </span>
+                          <span className="text-xs text-gray-500">{log.source || 'unknown'}</span>
+                          <span className="text-xs text-gray-400 ml-auto">{formatDate(log.timestamp)}</span>
+                        </div>
+                        <p className="text-sm text-gray-900 mt-1 font-mono">{log.message}</p>
                       </div>
-                      <p className="text-sm text-gray-900 mt-1 font-mono">{log.message}</p>
+                    ))}
+                  </div>
+                  {hasMoreLogs && (
+                    <div className="p-4 border-t">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadMoreLogs}
+                        loading={isLoadingMoreLogs}
+                        className="w-full"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                        Load More ({logsPagination.total - logsPagination.current_page * logsPagination.per_page} remaining)
+                      </Button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

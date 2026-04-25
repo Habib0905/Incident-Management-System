@@ -82,6 +82,13 @@ export interface IncidentView {
   viewed_at: string;
 }
 
+export interface LogsPagination {
+  current_page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+}
+
 export interface AuthResponse {
   user: User;
   token: string;

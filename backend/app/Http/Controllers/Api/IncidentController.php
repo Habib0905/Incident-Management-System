@@ -15,6 +15,8 @@ use Illuminate\Http\Request;
 
 class IncidentController extends Controller
 {
+    private const LOGS_PER_PAGE = 50;
+
     public function __construct(
         private IncidentFilterService $filterService,
         private IncidentTimelineService $timelineService,
@@ -75,13 +77,28 @@ class IncidentController extends Controller
     {
         $user = $request->user();
         
-        $incident->load(['server', 'creator', 'assignedUser', 'logs', 'activityLogs.user']);
+        $incident->load(['server', 'creator', 'assignedUser', 'activityLogs.user']);
         
         $isViewed = $this->viewService->isViewed($incident, $user);
         $incident->is_viewed = $isViewed;
 
+        $logsPage = (int) $request->get('logs_page', 1);
+        $logsPerPage = (int) $request->get('logs_per_page', self::LOGS_PER_PAGE);
+        $logsPerPage = min($logsPerPage, 100);
+
+        $logsQuery = $incident->logs()->orderBy('timestamp', 'desc');
+        $totalLogs = $logsQuery->count();
+        $logs = $logsQuery->skip(($logsPage - 1) * $logsPerPage)->take($logsPerPage)->get();
+
         return response()->json([
             'incident' => $incident,
+            'logs' => $logs,
+            'logs_pagination' => [
+                'current_page' => $logsPage,
+                'per_page' => $logsPerPage,
+                'total' => $totalLogs,
+                'total_pages' => ceil($totalLogs / $logsPerPage),
+            ],
         ]);
     }
 

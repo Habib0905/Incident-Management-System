@@ -42,7 +42,7 @@ function StatCard({
 
 export default function DashboardPage() {
   const { data: incidents, isLoading } = useIncidents();
-  const { data: unreadCount } = useUnreadCount({ refetchInterval: 5000 });
+  const { data: unreadCount } = useUnreadCount({ refetchInterval: 15000 });
 
   const stats = {
     open: incidents?.filter((i) => i.status === 'open').length || 0,

@@ -26,7 +26,7 @@ const navItems = [
 export function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
   const pathname = usePathname();
-  const { data: unreadCount = 0 } = useUnreadCount({ refetchInterval: 5000 });
+  const { data: unreadCount = 0 } = useUnreadCount({ refetchInterval: 15000 });
 
   const filteredNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 

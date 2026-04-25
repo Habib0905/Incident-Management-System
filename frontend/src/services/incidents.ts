@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { Incident, IncidentFilters, ActivityLog } from '@/types';
+import { Incident, IncidentFilters, ActivityLog, LogsPagination } from '@/types';
 
 export const incidentService = {
   async getAll(filters?: IncidentFilters): Promise<Incident[]> {
@@ -7,9 +7,13 @@ export const incidentService = {
     return response.data.incidents;
   },
 
-  async getById(id: number): Promise<Incident> {
-    const response = await api.get<{ incident: Incident; has_viewed: boolean }>(`/incidents/${id}`);
-    return response.data.incident;
+  async getById(id: number): Promise<{ incident: Incident; logs: Incident['logs']; logs_pagination?: LogsPagination }> {
+    const response = await api.get(`/incidents/${id}`);
+    return {
+      incident: response.data.incident,
+      logs: response.data.logs || [],
+      logs_pagination: response.data.logs_pagination,
+    };
   },
 
   async update(id: number, data: { status?: string; summary?: string }): Promise<Incident> {

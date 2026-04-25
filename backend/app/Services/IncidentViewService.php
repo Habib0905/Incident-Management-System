@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Incident;
 use App\Models\IncidentView;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class IncidentViewService
 {
@@ -30,10 +31,11 @@ class IncidentViewService
 
     public function getUnreadCount(User $user): int
     {
-        $viewedIncidentIds = IncidentView::where('user_id', $user->id)
-            ->pluck('incident_id');
-
-        return Incident::whereNotIn('id', $viewedIncidentIds)
-            ->count();
+        return Incident::whereNotExists(function ($query) use ($user) {
+            $query->select(DB::raw(1))
+                  ->from('incident_views')
+                  ->whereColumn('incident_views.incident_id', 'incidents.id')
+                  ->where('incident_views.user_id', $user->id);
+        })->count();
     }
 }

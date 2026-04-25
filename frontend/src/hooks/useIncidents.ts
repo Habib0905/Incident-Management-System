@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { incidentService } from '@/services';
-import { IncidentFilters } from '@/types';
+import { IncidentFilters, LogsPagination } from '@/types';
 
 export function useIncidents(filters?: IncidentFilters) {
   return useQuery({
@@ -28,7 +28,7 @@ export function useUnreadCount(options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ['unread-count'],
     queryFn: () => incidentService.getUnreadCount(),
-    refetchInterval: options?.refetchInterval ?? 30000,
+    refetchInterval: options?.refetchInterval ?? 15000,
     staleTime: 0,
   });
 }
