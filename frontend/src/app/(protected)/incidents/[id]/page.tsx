@@ -135,33 +135,33 @@ export default function IncidentDetail({ params }: PageProps) {
                 </div>
               </div>
 
-              {canAssign && (
+              {canEdit && (
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
-                  {canEdit && (
-                    <Button
-                      onClick={() => { 
-                        setShowAssignForm(false);
-                        setShowNoteForm(false);
-                        setShowStatusForm(!showStatusForm); 
-                        setStatus(incident.status); 
-                      }}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      Change Status
-                    </Button>
-                  )}
                   <Button
                     onClick={() => { 
-                      setShowStatusForm(false);
+                      setShowAssignForm(false);
                       setShowNoteForm(false);
-                      setShowAssignForm(!showAssignForm);
+                      setShowStatusForm(!showStatusForm); 
+                      setStatus(incident.status); 
                     }}
                     variant="secondary"
                     size="sm"
                   >
-                    {incident.assigned_to ? 'Reassign' : 'Assign'}
+                    Change Status
                   </Button>
+                  {canAssign && (
+                    <Button
+                      onClick={() => { 
+                        setShowStatusForm(false);
+                        setShowNoteForm(false);
+                        setShowAssignForm(!showAssignForm);
+                      }}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {incident.assigned_to ? 'Reassign' : 'Assign'}
+                    </Button>
+                  )}
                   <Button
                     onClick={() => { 
                       setShowStatusForm(false);
