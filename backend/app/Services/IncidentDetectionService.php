@@ -6,164 +6,74 @@ use App\Models\Log;
 
 class IncidentDetectionService
 {
-    private array $rules = [];
+    private array $severityMap = [];
 
     public function __construct()
     {
-        $this->initializeRules();
+        $this->initializeSeverityMap();
     }
 
-    private function initializeRules(): void
+    private function initializeSeverityMap(): void
     {
-        $this->rules = [
-            [
-                'patterns' => [
-                    'database connection failed',
-                    'connection refused',
-                    'could not connect to database',
-                    'database unavailable',
-                    'sqlstate',
-                ],
-                'type' => 'database',
-                'severity' => 'critical',
-                'title_template' => 'Database connection issue detected',
-            ],
-            [
-                'patterns' => [
-                    'service unavailable',
-                    '503',
-                    'http 503',
-                    'service down',
-                    'not reachable',
-                ],
-                'type' => 'network',
-                'severity' => 'high',
-                'title_template' => 'Service unavailable',
-            ],
-            [
-                'patterns' => [
-                    'connection timeout',
-                    'request timeout',
-                    'operation timed out',
-                    'timeout exceeded',
-                ],
-                'type' => 'network',
-                'severity' => 'medium',
-                'title_template' => 'Timeout detected',
-            ],
-            [
-                'patterns' => [
-                    'retry failure',
-                    'max retries exceeded',
-                    'retries exhausted',
-                    'attempt failed',
-                ],
-                'type' => 'system',
-                'severity' => 'low',
-                'title_template' => 'Retry operation failed',
-            ],
-            [
-                'patterns' => [
-                    'authentication failed',
-                    'auth failed',
-                    'invalid credentials',
-                    'unauthorized',
-                    'access denied',
-                ],
-                'type' => 'auth',
-                'severity' => 'high',
-                'title_template' => 'Authentication failure',
-            ],
-            [
-                'patterns' => [
-                    'permission denied',
-                    'forbidden',
-                    'access denied',
-                ],
-                'type' => 'auth',
-                'severity' => 'medium',
-                'title_template' => 'Permission denied',
-            ],
-            [
-                'patterns' => [
-                    'out of memory',
-                    'memory exhausted',
-                    'oom',
-                    'memory limit',
-                ],
-                'type' => 'system',
-                'severity' => 'critical',
-                'title_template' => 'Memory exhaustion',
-            ],
-            [
-                'patterns' => [
-                    'disk full',
-                    'no space left',
-                    'storage full',
-                ],
-                'type' => 'system',
-                'severity' => 'high',
-                'title_template' => 'Storage issue',
-            ],
-            [
-                'patterns' => [
-                    'panic',
-                    'kernel panic',
-                    'fatal error',
-                    'segmentation fault',
-                ],
-                'type' => 'system',
-                'severity' => 'critical',
-                'title_template' => 'Critical system error',
-            ],
-            [
-                'patterns' => [
-                    'warning',
-                    'warn',
-                    'deprecation',
-                ],
-                'type' => 'general',
-                'severity' => 'low',
-                'title_template' => 'Warning detected',
-            ],
+        $this->severityMap = [
+            'database' => 'critical',
+            'system' => 'critical',
+            'network' => 'high',
+            'auth' => 'high',
+            'container' => 'high',
+            'cloud' => 'high',
+            'nginx' => 'high',
+            'apache' => 'high',
+            'api' => 'medium',
+            'queue' => 'medium',
+            'file' => 'medium',
+            'email' => 'medium',
+            'general' => 'medium',
+            'cache' => 'low',
         ];
     }
 
     public function analyze(Log $log): ?array
     {
-        $message = strtolower($log->message);
+        $source = $log->source ?? 'unknown';
 
-        foreach ($this->rules as $rule) {
-            foreach ($rule['patterns'] as $pattern) {
-                if (str_contains($message, strtolower($pattern))) {
-                    return [
-                        'type' => $rule['type'],
-                        'severity' => $rule['severity'],
-                        'title' => $this->buildTitle($rule['title_template'], $log),
-                    ];
-                }
+        if ($source === 'unknown') {
+            if ($log->log_level === 'error') {
+                return [
+                    'type' => 'general',
+                    'severity' => 'medium',
+                    'title' => $this->buildTitleFromMessage($log->message),
+                ];
             }
+            return null;
         }
 
-        if ($log->log_level === 'error') {
-            return [
-                'type' => 'general',
-                'severity' => 'medium',
-                'title' => 'Error: ' . substr($log->message, 0, 100),
-            ];
-        }
-
-        return null;
+        return [
+            'type' => $source,
+            'severity' => $this->getSeverityForSource($source),
+            'title' => $this->buildTitleFromMessage($log->message),
+        ];
     }
 
-    private function buildTitle(string $template, Log $log): string
+    public function getSeverityForSource(string $source): string
     {
-        $title = $template;
-        
-        if ($log->source && $log->source !== 'unknown') {
-            $title .= ' on ' . $log->source;
+        return $this->severityMap[$source] ?? 'medium';
+    }
+
+    private function buildTitleFromMessage(string $message): string
+    {
+        $message = trim($message);
+        $cleaned = preg_replace('/^(ERROR|WARN|WARNING|INFO|DEBUG|CRITICAL|FATAL)\s*:\s*/i', '', $message);
+
+        if (strlen($cleaned) > 80) {
+            $cleaned = substr($cleaned, 0, 77) . '...';
         }
 
-        return $title;
+        return ucfirst($cleaned);
+    }
+
+    public function getSeverityMap(): array
+    {
+        return $this->severityMap;
     }
 }
