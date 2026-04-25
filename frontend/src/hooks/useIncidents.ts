@@ -91,7 +91,7 @@ export function useMarkAsViewed() {
   return useMutation({
     mutationFn: (id: number) => incidentService.markAsViewed(id),
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.setQueryData(['unread-count'], (old: number | undefined) => Math.max(0, (old ?? 1) - 1));
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['my-incidents'] });

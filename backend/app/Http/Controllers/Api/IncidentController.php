@@ -68,7 +68,8 @@ class IncidentController extends Controller
 
     public function unreadCount(Request $request)
     {
-        $count = $this->viewService->getUnreadCount($request->user());
+        $user = $request->user();
+        $count = $user->cached_unread_count ?? 0;
 
         return response()->json(['unread_count' => $count]);
     }
@@ -213,7 +214,15 @@ class IncidentController extends Controller
 
     public function view(Request $request, Incident $incident)
     {
-        $this->viewService->markAsViewed($incident, $request->user());
+        $user = $request->user();
+        
+        $wasNewView = !$this->viewService->isViewed($incident, $user);
+        
+        $this->viewService->markAsViewed($incident, $user);
+        
+        if ($wasNewView) {
+            $user->decrement('cached_unread_count');
+        }
 
         return response()->json(['message' => 'Marked as viewed']);
     }

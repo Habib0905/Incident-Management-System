@@ -6,6 +6,7 @@ use App\Models\Incident;
 use App\Models\IncidentLog;
 use App\Models\Log;
 use App\Models\Server;
+use App\Models\User;
 
 class LogIngestionService
 {
@@ -78,6 +79,8 @@ class LogIngestionService
             ]);
 
             $this->timeline->logCreated($incident);
+            
+            User::query()->increment('cached_unread_count');
 
             return $incident;
         } catch (\Exception $e) {
