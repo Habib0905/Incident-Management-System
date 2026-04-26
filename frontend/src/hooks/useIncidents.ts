@@ -75,8 +75,8 @@ export function useUpdateIncident() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: { status?: string; summary?: string } }) =>
       incidentService.update(id, data),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['incident', data.id], data);
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['incident', variables.id] });
     },
   });
 }
@@ -87,8 +87,8 @@ export function useAssignIncident() {
   return useMutation({
     mutationFn: ({ id, assignedTo }: { id: number; assignedTo: number }) =>
       incidentService.assign(id, assignedTo),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['incident', data.id], data);
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['incident', variables.id] });
     },
   });
 }
