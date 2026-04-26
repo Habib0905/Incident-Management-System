@@ -28,10 +28,11 @@ import Link from 'next/link';
 import { formatRelativeTime } from '@/lib/utils';
 
 export default function IncidentsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status') || '';
   const initialSeverity = searchParams.get('severity') || '';
+  const initialFilter = searchParams.get('filter') || '';
   
   const { data: incidents, isLoading, isError } = useIncidents({
     status: initialStatus || undefined,
@@ -42,6 +43,7 @@ export default function IncidentsPage() {
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [severityFilter, setSeverityFilter] = useState(initialSeverity);
   const [typeFilter, setTypeFilter] = useState('');
+  const [assignedFilter, setAssignedFilter] = useState(initialFilter);
   const [showFilters, setShowFilters] = useState(false);
 
   const filteredIncidents = useMemo(() => {
@@ -60,16 +62,19 @@ export default function IncidentsPage() {
       if (statusFilter && incident.status !== statusFilter) return false;
       if (severityFilter && incident.severity !== severityFilter) return false;
       if (typeFilter && incident.type !== typeFilter) return false;
+      if (assignedFilter === 'assigned_to_me' && incident.assigned_to !== user?.id) return false;
+      if (assignedFilter === 'unassigned' && incident.assigned_to !== null) return false;
       return true;
     });
-  }, [incidents, search, statusFilter, severityFilter, typeFilter]);
+  }, [incidents, search, statusFilter, severityFilter, typeFilter, assignedFilter, user]);
 
-  const activeFilters = [statusFilter, severityFilter, typeFilter].filter(Boolean).length;
+  const activeFilters = [statusFilter, severityFilter, typeFilter, assignedFilter].filter(Boolean).length;
 
   function clearFilters() {
     setStatusFilter('');
     setSeverityFilter('');
     setTypeFilter('');
+    setAssignedFilter('');
   }
 
   return (
@@ -145,6 +150,26 @@ export default function IncidentsPage() {
                   { value: 'general', label: 'General' },
                 ]}
               />
+              {!isAdmin && (
+                <Select
+                  value={assignedFilter}
+                  onChange={(e) => setAssignedFilter(e.target.value)}
+                  options={[
+                    { value: '', label: 'All Incidents' },
+                    { value: 'assigned_to_me', label: 'Assigned to Me' },
+                  ]}
+                />
+              )}
+              {isAdmin && (
+                <Select
+                  value={assignedFilter}
+                  onChange={(e) => setAssignedFilter(e.target.value)}
+                  options={[
+                    { value: '', label: 'All Incidents' },
+                    { value: 'unassigned', label: 'Unassigned' },
+                  ]}
+                />
+              )}
               {activeFilters > 0 && (
                 <button onClick={clearFilters} className="text-sm text-red-600 hover:underline flex items-center gap-1">
                   <X className="h-4 w-4" />

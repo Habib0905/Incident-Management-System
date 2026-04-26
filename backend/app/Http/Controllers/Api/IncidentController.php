@@ -226,7 +226,12 @@ class IncidentController extends Controller
             ->where('unread_count', '>', 0)
             ->decrement('unread_count');
 
-        return response()->json(['message' => 'Marked as viewed']);
+        $user->refresh();
+
+        return response()->json([
+            'message' => 'Marked as viewed',
+            'unread_count' => $user->unread_count ?? 0,
+        ]);
     }
 
     private function canUpdate(User $user, Incident $incident): bool

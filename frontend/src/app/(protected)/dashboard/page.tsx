@@ -1,6 +1,7 @@
 'use client';
 
 import { useIncidents, useUnreadCount } from '@/hooks';
+import { useAuth } from '@/store/auth';
 import { Card, CardHeader, CardTitle, CardContent, SeverityBadge, StatusBadge, UnreadBadge } from '@/components/ui';
 import { Clock, CheckCircle, AlertCircle, UserX, Bell, User } from 'lucide-react';
 import Link from 'next/link';
@@ -41,6 +42,7 @@ function StatCard({
 }
 
 export default function DashboardPage() {
+  const { user, isAdmin } = useAuth();
   const { data: incidents, isLoading } = useIncidents();
   const { data: unreadCount } = useUnreadCount();
 
@@ -49,6 +51,7 @@ export default function DashboardPage() {
     investigating: incidents?.filter((i) => i.status === 'investigating').length || 0,
     resolved: incidents?.filter((i) => i.status === 'resolved').length || 0,
     unassigned: incidents?.filter((i) => !i.assigned_to).length || 0,
+    assignedToMe: incidents?.filter((i) => i.assigned_to === user?.id && i.status === 'open').length || 0,
     unread: unreadCount || 0,
   };
 
@@ -85,13 +88,23 @@ export default function DashboardPage() {
           color="bg-green-500"
           link="/incidents?status=resolved"
         />
-        <StatCard
-          title="Unassigned"
-          value={stats.unassigned}
-          icon={UserX}
-          color="bg-gray-500"
-          link="/incidents?assigned_to="
-        />
+        {isAdmin ? (
+          <StatCard
+            title="Unassigned"
+            value={stats.unassigned}
+            icon={UserX}
+            color="bg-gray-500"
+            link="/incidents?filter=unassigned"
+          />
+        ) : (
+          <StatCard
+            title="Assigned to Me"
+            value={stats.assignedToMe}
+            icon={User}
+            color="bg-purple-500"
+            link="/incidents?filter=assigned_to_me"
+          />
+        )}
         <StatCard
           title="Unread"
           value={stats.unread}

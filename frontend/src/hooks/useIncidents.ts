@@ -123,10 +123,7 @@ export function useMarkAsViewed() {
           incident: { ...old.incident, is_viewed: true },
         };
       });
-      queryClient.setQueryData(['unread-count'], (old: number) => {
-        if (!old || old <= 0) return 0;
-        return old - 1;
-      });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
     },

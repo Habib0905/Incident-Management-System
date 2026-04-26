@@ -5,22 +5,36 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/store/auth';
 import { useRouter } from 'next/navigation';
 
-export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 300000,
-            gcTime: 600000,
-            retry: 1,
-            retryDelay: 500,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-          },
+let queryClientInstance: QueryClient | null = null;
+
+function getQueryClient(): QueryClient {
+  if (!queryClientInstance) {
+    queryClientInstance = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 300000,
+          gcTime: 600000,
+          retry: 1,
+          retryDelay: 500,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false,
         },
-      })
-  );
+      },
+    });
+  }
+  return queryClientInstance;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:user-changed', () => {
+    if (queryClientInstance) {
+      queryClientInstance.clear();
+    }
+  });
+}
+
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = getQueryClient();
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

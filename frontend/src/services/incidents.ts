@@ -44,8 +44,9 @@ export const incidentService = {
     return { summary: response.data.summary, saved: response.data.saved };
   },
 
-  async markAsViewed(id: number): Promise<void> {
-    await api.post(`/incidents/${id}/view`);
+  async markAsViewed(id: number): Promise<{ message: string; unread_count: number }> {
+    const response = await api.post(`/incidents/${id}/view`);
+    return response.data;
   },
 
   async getMyIncidents(): Promise<Incident[]> {
