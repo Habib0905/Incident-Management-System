@@ -19,7 +19,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true,
 
       setAuth: (user, token) => {
         if (typeof window !== 'undefined') {
