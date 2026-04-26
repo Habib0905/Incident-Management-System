@@ -77,6 +77,7 @@ export function useUpdateIncident() {
       incidentService.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['incident', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['timeline', variables.id] });
     },
   });
 }
@@ -89,6 +90,7 @@ export function useAssignIncident() {
       incidentService.assign(id, assignedTo),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['incident', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['timeline', variables.id] });
     },
   });
 }
