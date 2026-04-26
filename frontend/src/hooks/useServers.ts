@@ -5,6 +5,12 @@ export function useServers() {
   return useQuery({
     queryKey: ['servers'],
     queryFn: () => serverService.getAll(),
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 

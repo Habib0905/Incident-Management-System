@@ -79,8 +79,8 @@ class LogIngestionService
             ]);
 
             $this->timeline->logCreated($incident);
-            
-            User::query()->increment('cached_unread_count');
+
+            User::query()->update(['unread_count' => \Illuminate\Support\Facades\DB::raw('unread_count + 1')]);
 
             return $incident;
         } catch (\Exception $e) {

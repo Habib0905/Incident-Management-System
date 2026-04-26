@@ -1,11 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { incidentService } from '@/services';
-import { IncidentFilters, LogsPagination } from '@/types';
+import { Incident, IncidentFilters, LogsPagination } from '@/types';
 
 export function useIncidents(filters?: IncidentFilters) {
   return useQuery({
     queryKey: ['incidents', filters],
     queryFn: () => incidentService.getAll(filters),
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 
@@ -14,6 +20,12 @@ export function useIncident(id: number) {
     queryKey: ['incident', id],
     queryFn: () => incidentService.getById(id),
     enabled: !!id,
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 
@@ -21,15 +33,25 @@ export function useMyIncidents() {
   return useQuery({
     queryKey: ['my-incidents'],
     queryFn: () => incidentService.getMyIncidents(),
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 
-export function useUnreadCount(options?: { refetchInterval?: number }) {
+export function useUnreadCount() {
   return useQuery({
     queryKey: ['unread-count'],
     queryFn: () => incidentService.getUnreadCount(),
-    refetchInterval: options?.refetchInterval ?? 15000,
-    staleTime: 0,
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 
@@ -38,6 +60,12 @@ export function useTimeline(incidentId: number) {
     queryKey: ['timeline', incidentId],
     queryFn: () => incidentService.getTimeline(incidentId),
     enabled: !!incidentId,
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 
@@ -48,8 +76,7 @@ export function useUpdateIncident() {
     mutationFn: ({ id, data }: { id: number; data: { status?: string; summary?: string } }) =>
       incidentService.update(id, data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['incident', data.id] });
-      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      queryClient.setQueryData(['incident', data.id], data);
     },
   });
 }
@@ -61,8 +88,7 @@ export function useAssignIncident() {
     mutationFn: ({ id, assignedTo }: { id: number; assignedTo: number }) =>
       incidentService.assign(id, assignedTo),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['incident', data.id] });
-      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      queryClient.setQueryData(['incident', data.id], data);
     },
   });
 }
@@ -74,7 +100,6 @@ export function useAddNote() {
     mutationFn: ({ id, note }: { id: number; note: string }) => incidentService.addNote(id, note),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['timeline', variables.id] });
-      queryClient.invalidateQueries({ queryKey: ['incident', variables.id] });
     },
   });
 }
@@ -91,8 +116,17 @@ export function useMarkAsViewed() {
   return useMutation({
     mutationFn: (id: number) => incidentService.markAsViewed(id),
     onSuccess: (_, id) => {
-      queryClient.setQueryData(['unread-count'], (old: number | undefined) => Math.max(0, (old ?? 1) - 1));
-      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      queryClient.setQueryData(['incident', id], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          incident: { ...old.incident, is_viewed: true },
+        };
+      });
+      queryClient.setQueryData(['unread-count'], (old: number) => {
+        if (!old || old <= 0) return 0;
+        return old - 1;
+      });
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
     },

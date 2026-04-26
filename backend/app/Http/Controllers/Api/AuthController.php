@@ -46,12 +46,13 @@ class AuthController extends Controller
     
     private function syncUnreadCount($user): void
     {
-        $viewedIncidentIds = \App\Models\IncidentView::where('user_id', $user->id)
-            ->pluck('incident_id');
-        
-        $actualCount = Incident::whereNotIn('id', $viewedIncidentIds)->count();
-        
-        $user->cached_unread_count = $actualCount;
-        $user->save();
+        $count = Incident::leftJoin('incident_views', function ($join) use ($user) {
+                $join->on('incidents.id', '=', 'incident_views.incident_id')
+                     ->where('incident_views.user_id', $user->id);
+            })
+            ->whereNull('incident_views.incident_id')
+            ->count();
+
+        $user->update(['unread_count' => $count]);
     }
 }

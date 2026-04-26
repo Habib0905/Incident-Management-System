@@ -156,6 +156,7 @@ class LogNormalizationService
         if ($this->matchesAny($lowerText, [
             'ldap error', 'ldap:', 'oauth error', 'oauth:', 'oauth2',
             'jwt invalid', 'jwt error', 'jwt expired', 'jwt_error',
+            'jwt token', 'jwt validation', 'jwt signature',
             'session expired', 'session timeout', 'csrf token',
             'csrf error', 'xss detected', 'xss:', 'sql injection',
             'authentication error', 'authentication failed',

@@ -12,6 +12,7 @@ use App\Services\IncidentTimelineService;
 use App\Services\IncidentViewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class IncidentController extends Controller
 {
@@ -38,15 +39,18 @@ class IncidentController extends Controller
             'created_before' => 'sometimes|date',
         ]);
 
+        $user = $request->user();
+
         $query = $this->filterService->filter($filters);
         
-        $user = $request->user();
-        $viewedIds = $user->viewedIncidents()->pluck('incidents.id');
-
-        $incidents = $query->get()->map(function ($incident) use ($viewedIds) {
-            $incident->is_viewed = $viewedIds->contains($incident->id);
-            return $incident;
-        });
+        $incidents = $query->leftJoin('incident_views', function ($join) use ($user) {
+                $join->on('incidents.id', '=', 'incident_views.incident_id')
+                     ->where('incident_views.user_id', $user->id);
+            })
+            ->select('incidents.*', 
+                     DB::raw('CASE WHEN incident_views.incident_id IS NOT NULL THEN true ELSE false END as is_viewed'))
+            ->limit(50)
+            ->get();
 
         return response()->json(['incidents' => $incidents]);
     }
@@ -56,12 +60,14 @@ class IncidentController extends Controller
         $user = $request->user();
         $query = $this->filterService->getMyIncidents($user);
         
-        $viewedIds = $user->viewedIncidents()->pluck('incidents.id');
-
-        $incidents = $query->get()->map(function ($incident) use ($viewedIds) {
-            $incident->is_viewed = $viewedIds->contains($incident->id);
-            return $incident;
-        });
+        $incidents = $query->leftJoin('incident_views', function ($join) use ($user) {
+                $join->on('incidents.id', '=', 'incident_views.incident_id')
+                     ->where('incident_views.user_id', $user->id);
+            })
+            ->select('incidents.*', 
+                     DB::raw('CASE WHEN incident_views.incident_id IS NOT NULL THEN true ELSE false END as is_viewed'))
+            ->limit(50)
+            ->get();
 
         return response()->json(['incidents' => $incidents]);
     }
@@ -69,17 +75,15 @@ class IncidentController extends Controller
     public function unreadCount(Request $request)
     {
         $user = $request->user();
-        $count = $user->cached_unread_count ?? 0;
-
-        return response()->json(['unread_count' => $count]);
+        return response()->json(['unread_count' => $user->unread_count ?? 0]);
     }
 
     public function show(Request $request, Incident $incident)
     {
         $user = $request->user();
         
-        $incident->load(['server', 'creator', 'assignedUser', 'activityLogs.user']);
-        
+        $incident->load(['server', 'creator', 'assignedUser']);
+
         $isViewed = $this->viewService->isViewed($incident, $user);
         $incident->is_viewed = $isViewed;
 
@@ -215,14 +219,12 @@ class IncidentController extends Controller
     public function view(Request $request, Incident $incident)
     {
         $user = $request->user();
-        
-        $wasNewView = !$this->viewService->isViewed($incident, $user);
-        
         $this->viewService->markAsViewed($incident, $user);
-        
-        if ($wasNewView) {
-            $user->decrement('cached_unread_count');
-        }
+
+        \Illuminate\Support\Facades\DB::table('users')
+            ->where('id', $user->id)
+            ->where('unread_count', '>', 0)
+            ->decrement('unread_count');
 
         return response()->json(['message' => 'Marked as viewed']);
     }

@@ -5,6 +5,12 @@ export function useUsers() {
   return useQuery({
     queryKey: ['users'],
     queryFn: () => userService.getAll(),
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers } from '@/hooks';
 import { useAuth } from '@/store/auth';
@@ -37,8 +37,8 @@ interface PageProps {
 export default function IncidentDetail({ params }: PageProps) {
   const { id } = use(params);
   const incidentId = parseInt(id);
-  const { data, isLoading, error, refetch } = useIncident(id);
-  const { data: timeline } = useTimeline(id);
+  const { data, isLoading, error, refetch } = useIncident(incidentId);
+  const { data: timeline } = useTimeline(incidentId);
   const { user, isAdmin } = useAuth();
   const { data: users } = useUsers();
   const markAsViewed = useMarkAsViewed();
@@ -56,6 +56,7 @@ export default function IncidentDetail({ params }: PageProps) {
   const [logs, setLogs] = useState<Log[]>([]);
   const [logsPagination, setLogsPagination] = useState<LogsPagination | null>(null);
   const [isLoadingMoreLogs, setIsLoadingMoreLogs] = useState(false);
+  const hasMarkedAsViewed = useRef(false);
 
   const incident = data?.incident;
   const hasMoreLogs = logsPagination ? logsPagination.current_page < logsPagination.total_pages : false;
@@ -70,7 +71,8 @@ export default function IncidentDetail({ params }: PageProps) {
   }, [data]);
 
   useEffect(() => {
-    if (incident && !incident.is_viewed) {
+    if (incident && !incident.is_viewed && !hasMarkedAsViewed.current) {
+      hasMarkedAsViewed.current = true;
       markAsViewed.mutate(incidentId);
     }
   }, [incident, incidentId, markAsViewed]);
@@ -116,21 +118,21 @@ export default function IncidentDetail({ params }: PageProps) {
 
   async function handleStatusUpdate() {
     if (!status) return;
-    await updateIncident.mutateAsync({ id, data: { status } });
+    await updateIncident.mutateAsync({ id: incidentId, data: { status } });
     setShowStatusForm(false);
     setStatus('');
   }
 
   async function handleAssign() {
     if (!assignTo) return;
-    await assignIncident.mutateAsync({ id, assignedTo: parseInt(assignTo) });
+    await assignIncident.mutateAsync({ id: incidentId, assignedTo: parseInt(assignTo) });
     setShowAssignForm(false);
     setAssignTo('');
   }
 
   async function handleAddNote() {
     if (!note.trim()) return;
-    await addNote.mutateAsync({ id, note: note.trim() });
+    await addNote.mutateAsync({ id: incidentId, note: note.trim() });
     setShowNoteForm(false);
     setNote('');
   }
@@ -328,7 +330,7 @@ export default function IncidentDetail({ params }: PageProps) {
                         className="w-full"
                       >
                         <ChevronDown className="h-4 w-4" />
-                        Load More ({logsPagination.total - logsPagination.current_page * logsPagination.per_page} remaining)
+                        Load More ({logsPagination && logsPagination.total ? logsPagination.total - logsPagination.current_page * logsPagination.per_page : 0} remaining)
                       </Button>
                     </div>
                   )}

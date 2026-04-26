@@ -68,4 +68,11 @@ class IncidentFilterService
             ->where('assigned_to', $user->id)
             ->orderBy('created_at', 'desc');
     }
+
+    public function filterPaginated(?array $filters, int $perPage = 20): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $query = $this->filter($filters);
+
+        return $query->paginate($perPage);
+    }
 }
