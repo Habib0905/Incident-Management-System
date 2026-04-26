@@ -7,6 +7,7 @@ import {
   useRegenerateKey,
   useRevokeKey,
   useActivateKey,
+  useDeleteServer,
 } from '@/hooks';
 import { useAuth } from '@/store/auth';
 import { AdminRoute } from '@/components/Providers';
@@ -34,6 +35,7 @@ export default function ServersPage() {
   const regenerateKey = useRegenerateKey();
   const revokeKey = useRevokeKey();
   const activateKey = useActivateKey();
+  const deleteServer = useDeleteServer();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [name, setName] = useState('');
@@ -56,6 +58,13 @@ export default function ServersPage() {
   async function handleRegenerateKey(id: number) {
     const result = await regenerateKey.mutateAsync(id);
     setNewServerKey(result.api_key);
+  }
+
+  async function handleDelete(id: number, name: string) {
+    if (!confirm(`Are you sure you want to delete "${name}"? This will also remove all associated logs and incidents.`)) {
+      return;
+    }
+    await deleteServer.mutateAsync(id);
   }
 
   function handleCopy(key: string) {
@@ -226,6 +235,14 @@ export default function ServersPage() {
                           <Power className="h-4 w-4" />
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDelete(server.id, server.name)}
+                        disabled={deleteServer.isPending}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md"
+                        title="Delete Server"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
