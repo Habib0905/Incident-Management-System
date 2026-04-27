@@ -30,7 +30,11 @@ export default function LoginPage() {
       console.log('Login error caught:', err);
       if (axios.isAxiosError(err)) {
         console.log('Axios error details:', err.message, err.response?.status, err.response?.data);
-        setError(`Error: ${err.message} (${err.response?.status})`);
+        if (err.response?.status === 401) {
+          setError('Incorrect email or password');
+        } else {
+          setError(`Error: ${err.message} (${err.response?.status})`);
+        }
       } else if (err && typeof err === 'object' && 'message' in err) {
         const customError = err as { message?: string };
         setError(customError.message || 'Login failed');
