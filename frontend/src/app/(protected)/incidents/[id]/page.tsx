@@ -28,8 +28,10 @@ import {
   Send,
   ChevronDown,
   Sparkles,
+  FileDown,
 } from 'lucide-react';
 import { Log, LogsPagination } from '@/types';
+import jsPDF from 'jspdf';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -149,6 +151,37 @@ export default function IncidentDetail({ params }: PageProps) {
     } catch {
       setSummaryError('Failed to generate summary. Make sure Ollama is running with llama3.2 model.');
     }
+  }
+
+  function handleDownloadPDF() {
+    if (!summary || !incident) return;
+    const doc = new jsPDF();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('Incident Report', 14, 20);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Incident #${incident.id}`, 14, 30);
+    doc.setFontSize(14);
+    doc.text(incident.title, 14, 38);
+    doc.setFontSize(10);
+    doc.text(`Server: ${incident.server?.name || 'Unknown'}`, 14, 48);
+    doc.text(`Assigned: ${incident.assigned_user?.name || 'Unassigned'}`, 14, 55);
+    doc.text(`Status: ${incident.status}`, 14, 62);
+    doc.text(`Severity: ${incident.severity}`, 14, 69);
+    doc.text(`Type: ${incident.type}`, 14, 76);
+    doc.text(`Created: ${formatDate(incident.created_at)}`, 14, 83);
+    doc.text(`Updated: ${formatDate(incident.updated_at)}`, 14, 90);
+    doc.setDrawColor(180, 180, 180);
+    doc.line(14, 95, 196, 95);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('AI Summary', 14, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const summaryLines = doc.splitTextToSize(summary, 180);
+    doc.text(summaryLines, 14, 113);
+    doc.save(`incident-${incident.id}-summary.pdf`);
   }
 
   return (
@@ -329,7 +362,18 @@ export default function IncidentDetail({ params }: PageProps) {
                     <p className="text-sm text-red-600">{summaryError}</p>
                   )}
                   {summary && !generateSummary.isPending && (
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{summary}</div>
+                    <div>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap">{summary}</div>
+                      <Button
+                        onClick={handleDownloadPDF}
+                        variant="secondary"
+                        size="sm"
+                        className="mt-3"
+                      >
+                        <FileDown className="h-4 w-4" />
+                        Download PDF
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
