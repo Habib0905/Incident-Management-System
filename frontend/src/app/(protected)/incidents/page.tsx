@@ -147,6 +147,15 @@ export default function IncidentsPage() {
                   { value: 'auth', label: 'Auth' },
                   { value: 'network', label: 'Network' },
                   { value: 'system', label: 'System' },
+                  { value: 'container', label: 'Container' },
+                  { value: 'cloud', label: 'Cloud' },
+                  { value: 'nginx', label: 'Nginx' },
+                  { value: 'apache', label: 'Apache' },
+                  { value: 'api', label: 'API' },
+                  { value: 'queue', label: 'Queue' },
+                  { value: 'file', label: 'File System' },
+                  { value: 'email', label: 'Email' },
+                  { value: 'cache', label: 'Cache' },
                   { value: 'general', label: 'General' },
                 ]}
               />

@@ -33,7 +33,7 @@ class IncidentController extends Controller
             'server_id' => 'sometimes|exists:servers,id',
             'environment' => 'sometimes|in:production,staging,development',
             'assigned_to' => 'sometimes|exists:users,id',
-            'type' => 'sometimes|in:database,auth,network,system,general',
+            'type' => 'sometimes|in:database,auth,network,system,general,container,cloud,nginx,apache,api,queue,file,email,cache',
             'search' => 'sometimes|string',
             'created_after' => 'sometimes|date',
             'created_before' => 'sometimes|date',

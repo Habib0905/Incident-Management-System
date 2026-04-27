@@ -184,6 +184,16 @@ export default function IncidentDetail({ params }: PageProps) {
     doc.save(`incident-${incident.id}-summary.pdf`);
   }
 
+  function renderSummary(text: string) {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -363,7 +373,7 @@ export default function IncidentDetail({ params }: PageProps) {
                   )}
                   {summary && !generateSummary.isPending && (
                     <div>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap">{summary}</div>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap">{renderSummary(summary)}</div>
                       <Button
                         onClick={handleDownloadPDF}
                         variant="secondary"
