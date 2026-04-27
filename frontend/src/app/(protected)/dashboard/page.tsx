@@ -51,7 +51,7 @@ export default function DashboardPage() {
     investigating: incidents?.filter((i) => i.status === 'investigating').length || 0,
     resolved: incidents?.filter((i) => i.status === 'resolved').length || 0,
     unassigned: incidents?.filter((i) => !i.assigned_to).length || 0,
-    assignedToMe: incidents?.filter((i) => i.assigned_to === user?.id && i.status === 'open').length || 0,
+    assignedToMe: incidents?.filter((i) => i.assigned_to === user?.id && i.status !== 'resolved').length || 0,
     unread: unreadCount || 0,
   };
 

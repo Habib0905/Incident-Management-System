@@ -196,8 +196,8 @@ export default function IncidentDetail({ params }: PageProps) {
                 </div>
               </div>
 
-              {canEdit && (
-                <div className="flex flex-wrap gap-2 pt-4 border-t">
+              <div className="flex flex-wrap gap-2 pt-4 border-t">
+                {canEdit && (
                   <Button
                     onClick={() => { 
                       setShowAssignForm(false);
@@ -210,19 +210,21 @@ export default function IncidentDetail({ params }: PageProps) {
                   >
                     Change Status
                   </Button>
-                  {canAssign && (
-                    <Button
-                      onClick={() => { 
-                        setShowStatusForm(false);
-                        setShowNoteForm(false);
-                        setShowAssignForm(!showAssignForm);
-                      }}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      {incident.assigned_to ? 'Reassign' : 'Assign'}
-                    </Button>
-                  )}
+                )}
+                {canAssign && (
+                  <Button
+                    onClick={() => { 
+                      setShowStatusForm(false);
+                      setShowNoteForm(false);
+                      setShowAssignForm(!showAssignForm);
+                    }}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    {incident.assigned_to ? 'Reassign' : 'Assign'}
+                  </Button>
+                )}
+                {canEdit && (
                   <Button
                     onClick={() => { 
                       setShowStatusForm(false);
@@ -234,17 +236,17 @@ export default function IncidentDetail({ params }: PageProps) {
                   >
                     Add Note
                   </Button>
-                  <Button
-                    onClick={handleGenerateSummary}
-                    disabled={generateSummary.isPending}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    AI Summarize
-                  </Button>
-                </div>
-              )}
+                )}
+                <Button
+                  onClick={handleGenerateSummary}
+                  disabled={generateSummary.isPending}
+                  variant="secondary"
+                  size="sm"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI Summarize
+                </Button>
+              </div>
 
               {showStatusForm && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">

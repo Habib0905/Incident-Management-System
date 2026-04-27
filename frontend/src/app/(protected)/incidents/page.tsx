@@ -62,7 +62,7 @@ export default function IncidentsPage() {
       if (statusFilter && incident.status !== statusFilter) return false;
       if (severityFilter && incident.severity !== severityFilter) return false;
       if (typeFilter && incident.type !== typeFilter) return false;
-      if (assignedFilter === 'assigned_to_me' && incident.assigned_to !== user?.id) return false;
+      if (assignedFilter === 'assigned_to_me' && (incident.assigned_to !== user?.id || incident.status === 'resolved')) return false;
       if (assignedFilter === 'unassigned' && incident.assigned_to !== null) return false;
       return true;
     });
