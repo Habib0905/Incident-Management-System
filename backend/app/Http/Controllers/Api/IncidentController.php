@@ -194,10 +194,6 @@ class IncidentController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->isAdmin() && $incident->assigned_to !== $user->id) {
-            return response()->json(['error' => 'Unauthorized to generate summary'], 403);
-        }
-
         $summary = $this->summaryService->generate($incident);
 
         if (!$summary) {

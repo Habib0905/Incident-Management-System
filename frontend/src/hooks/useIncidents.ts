@@ -107,8 +107,14 @@ export function useAddNote() {
 }
 
 export function useGenerateSummary() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (id: number) => incidentService.generateSummary(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      queryClient.invalidateQueries({ queryKey: ['timeline', id] });
+    },
   });
 }
 

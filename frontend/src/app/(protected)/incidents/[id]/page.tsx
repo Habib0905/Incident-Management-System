@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers } from '@/hooks';
+import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers, useGenerateSummary } from '@/hooks';
 import { useAuth } from '@/store/auth';
 import api from '@/lib/api';
 import {
@@ -27,6 +27,7 @@ import {
   Loader2,
   Send,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { Log, LogsPagination } from '@/types';
 
@@ -45,6 +46,7 @@ export default function IncidentDetail({ params }: PageProps) {
   const updateIncident = useUpdateIncident();
   const assignIncident = useAssignIncident();
   const addNote = useAddNote();
+  const generateSummary = useGenerateSummary();
 
   const [showStatusForm, setShowStatusForm] = useState(false);
   const [showAssignForm, setShowAssignForm] = useState(false);
@@ -59,6 +61,8 @@ export default function IncidentDetail({ params }: PageProps) {
   const hasMarkedAsViewed = useRef(false);
 
   const incident = data?.incident;
+  const [summary, setSummary] = useState<string | null>(incident?.summary || null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const hasMoreLogs = logsPagination ? logsPagination.current_page < logsPagination.total_pages : false;
 
   useEffect(() => {
@@ -135,6 +139,16 @@ export default function IncidentDetail({ params }: PageProps) {
     await addNote.mutateAsync({ id: incidentId, note: note.trim() });
     setShowNoteForm(false);
     setNote('');
+  }
+
+  async function handleGenerateSummary() {
+    setSummaryError(null);
+    try {
+      const result = await generateSummary.mutateAsync(incidentId);
+      setSummary(result.summary);
+    } catch {
+      setSummaryError('Failed to generate summary. Make sure Ollama is running with llama3.2 model.');
+    }
   }
 
   return (
@@ -220,6 +234,15 @@ export default function IncidentDetail({ params }: PageProps) {
                   >
                     Add Note
                   </Button>
+                  <Button
+                    onClick={handleGenerateSummary}
+                    disabled={generateSummary.isPending}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    AI Summarize
+                  </Button>
                 </div>
               )}
 
@@ -285,6 +308,27 @@ export default function IncidentDetail({ params }: PageProps) {
                       Cancel
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {(summary || summaryError || generateSummary.isPending) && (
+                <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="h-4 w-4 text-purple-600" />
+                    <h3 className="font-semibold text-purple-900">AI Summarization</h3>
+                    {generateSummary.isPending && (
+                      <Loader2 className="h-4 w-4 text-purple-600 animate-spin ml-auto" />
+                    )}
+                  </div>
+                  {generateSummary.isPending && (
+                    <p className="text-sm text-purple-600">Analyzing logs and generating summary...</p>
+                  )}
+                  {summaryError && (
+                    <p className="text-sm text-red-600">{summaryError}</p>
+                  )}
+                  {summary && !generateSummary.isPending && (
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{summary}</div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -3,7 +3,7 @@
 return [
 
     'ai' => [
-        'provider' => env('AI_PROVIDER', 'ollama'),
+        'provider' => env('AI_PROVIDER', 'rule-based'),
         'api_key' => env('AI_API_KEY'),
         'base_url' => env('AI_BASE_URL', 'http://localhost:11434'),
     ],
