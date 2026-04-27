@@ -12,6 +12,11 @@ export const userService = {
     return response.data.user;
   },
 
+  async update(id: number, data: { name?: string; email?: string; password?: string; role?: string }): Promise<User> {
+    const response = await api.patch<{ user: User }>(`/admin/users/${id}`, data);
+    return response.data.user;
+  },
+
   async delete(id: number): Promise<void> {
     await api.delete(`/admin/users/${id}`);
   },

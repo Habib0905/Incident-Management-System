@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUsers, useCreateUser, useDeleteUser } from '@/hooks';
+import { useUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/hooks';
 import { useAuth } from '@/store/auth';
 import {
   Card,
@@ -15,13 +15,14 @@ import {
   LoadingSpinner,
   Alert,
 } from '@/components/ui';
-import { Plus, Trash2, User, Users } from 'lucide-react';
+import { Plus, Trash2, User, Pencil, X, Check } from 'lucide-react';
 
 export default function UsersPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
   const { data: users, isLoading, isError } = useUsers();
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
+  const updateUser = useUpdateUser();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [name, setName] = useState('');
@@ -29,6 +30,12 @@ export default function UsersPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('engineer');
   const [error, setError] = useState('');
+
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState('');
 
   async function handleCreate() {
     if (!name || !email || !password) {
@@ -54,6 +61,42 @@ export default function UsersPage() {
       await deleteUser.mutateAsync(id);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to delete user');
+    }
+  }
+
+  function startEdit(user: any) {
+    setEditingUserId(user.id);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditPassword('');
+    setEditRole(user.role);
+  }
+
+  function cancelEdit() {
+    setEditingUserId(null);
+    setEditName('');
+    setEditEmail('');
+    setEditPassword('');
+    setEditRole('');
+  }
+
+  async function handleUpdate(id: number) {
+    if (!editName || !editEmail) {
+      return;
+    }
+    const data: { name: string; email: string; password?: string; role: string } = {
+      name: editName,
+      email: editEmail,
+      role: editRole,
+    };
+    if (editPassword) {
+      data.password = editPassword;
+    }
+    try {
+      await updateUser.mutateAsync({ id, data });
+      cancelEdit();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update user');
     }
   }
 
@@ -140,38 +183,93 @@ export default function UsersPage() {
             <div className="divide-y divide-gray-200">
               {users.map((user) => (
                 <div key={user.id} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-gray-100 rounded-full">
-                        <User className="h-5 w-5 text-gray-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-gray-900">{user.name}</h3>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              user.role === 'admin'
-                                ? 'bg-purple-100 text-purple-700'
-                                : 'bg-blue-100 text-blue-700'
-                            }`}
-                          >
-                            {user.role}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500">{user.email}</p>
+                  {editingUserId === user.id ? (
+                    <div className="space-y-3">
+                      <Input
+                        label="Name"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+                      <Input
+                        label="Email"
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                      />
+                      <Input
+                        label="Password"
+                        type="password"
+                        placeholder="Leave blank to keep current"
+                        value={editPassword}
+                        onChange={(e) => setEditPassword(e.target.value)}
+                      />
+                      <Select
+                        label="Role"
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value)}
+                        options={[
+                          { value: 'engineer', label: 'Engineer' },
+                          { value: 'admin', label: 'Admin' },
+                        ]}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleUpdate(user.id)}
+                          loading={updateUser.isPending}
+                          size="sm"
+                        >
+                          <Check className="h-4 w-4" />
+                          Save
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                          <X className="h-4 w-4" />
+                          Cancel
+                        </Button>
                       </div>
                     </div>
-                    {user.role !== 'admin' && (
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        disabled={deleteUser.isPending}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
-                        title="Delete user"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-gray-100 rounded-full">
+                          <User className="h-5 w-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-gray-900">{user.name}</h3>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full ${
+                                user.role === 'admin'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
+                              {user.role}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => startEdit(user)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md"
+                          title="Edit user"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        {user.role !== 'admin' && (
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            disabled={deleteUser.isPending}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
+                            title="Delete user"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
