@@ -10,7 +10,8 @@ export function useIncidents(filters?: IncidentFilters) {
     retryDelay: 500,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 300000,
+    refetchInterval: 30000,
+    staleTime: 0,
     gcTime: 600000,
   });
 }
@@ -37,7 +38,8 @@ export function useMyIncidents() {
     retryDelay: 500,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 300000,
+    refetchInterval: 30000,
+    staleTime: 0,
     gcTime: 600000,
   });
 }
@@ -50,7 +52,8 @@ export function useUnreadCount() {
     retryDelay: 500,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 300000,
+    refetchInterval: 30000,
+    staleTime: 0,
     gcTime: 600000,
   });
 }
@@ -134,6 +137,19 @@ export function useMarkAsViewed() {
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
+    },
+  });
+}
+
+export function useDeleteIncident() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => incidentService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
     },
   });
 }

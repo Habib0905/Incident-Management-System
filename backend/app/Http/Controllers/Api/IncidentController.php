@@ -75,7 +75,13 @@ class IncidentController extends Controller
     public function unreadCount(Request $request)
     {
         $user = $request->user();
-        return response()->json(['unread_count' => $user->unread_count ?? 0]);
+        $unreadCount = Incident::whereNotIn('id', function ($query) use ($user) {
+            $query->select('incident_id')
+                ->from('incident_views')
+                ->where('user_id', $user->id);
+        })->count();
+
+        return response()->json(['unread_count' => $unreadCount]);
     }
 
     public function show(Request $request, Incident $incident)
@@ -217,17 +223,23 @@ class IncidentController extends Controller
         $user = $request->user();
         $this->viewService->markAsViewed($incident, $user);
 
-        \Illuminate\Support\Facades\DB::table('users')
-            ->where('id', $user->id)
-            ->where('unread_count', '>', 0)
-            ->decrement('unread_count');
-
-        $user->refresh();
-
         return response()->json([
             'message' => 'Marked as viewed',
-            'unread_count' => $user->unread_count ?? 0,
         ]);
+    }
+
+    public function destroy(Request $request, Incident $incident)
+    {
+        if (!$request->user()->isAdmin()) {
+            return response()->json(['error' => 'Only admins can delete incidents'], 403);
+        }
+
+        $incident->activityLogs()->delete();
+        $incident->views()->delete();
+        $incident->logs()->detach();
+        $incident->delete();
+
+        return response()->json(['message' => 'Incident deleted']);
     }
 
     private function canUpdate(User $user, Incident $incident): bool

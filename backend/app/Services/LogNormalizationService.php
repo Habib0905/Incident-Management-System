@@ -15,13 +15,47 @@ class LogNormalizationService
 
     private function normalizeJson(array $data): array
     {
+        $message = $this->extractField($data, 'message', 'Unknown error');
+        $level = $this->extractField($data, 'level', null);
+        $timestamp = $this->extractField($data, 'timestamp', null);
+        $source = $this->extractField($data, 'source', null);
+
+        if (!$level) {
+            $level = $this->detectLogLevelFromText($message);
+        }
+
+        $normalizedLevel = $this->normalizeLogLevel($level);
+
+        if (!$source) {
+            $source = $this->detectSourceFromText($message);
+        }
+
         return [
-            'message' => $data['message'] ?? 'Unknown error',
-            'log_level' => $this->normalizeLogLevel($data['level'] ?? null),
-            'source' => $this->detectSourceFromText($data['message'] ?? ''),
-            'timestamp' => $this->parseTimestamp($data['timestamp'] ?? null),
+            'message' => $message,
+            'log_level' => $normalizedLevel,
+            'source' => $source,
+            'timestamp' => $this->parseTimestamp($timestamp),
             'raw_payload' => $data,
         ];
+    }
+
+    private function extractField(array $data, string $field, $default)
+    {
+        $aliases = match ($field) {
+            'message' => ['message', 'msg', '@m', 'text', 'log', 'description'],
+            'level' => ['level', 'severity', 'log_level', 'loglevel', '@l', 'priority', 'log_level'],
+            'timestamp' => ['timestamp', 'time', '@t', 'ts', 'datetime', 'date', 'created_at'],
+            'source' => ['source', 'service', 'component', 'app', 'logger', 'channel', 'facility'],
+            default => [$field],
+        };
+
+        foreach ($aliases as $alias) {
+            if (isset($data[$alias]) && $data[$alias] !== '') {
+                return $data[$alias];
+            }
+        }
+
+        return $default;
     }
 
     private function normalizeText(string $text): array
@@ -84,418 +118,287 @@ class LogNormalizationService
         $lowerText = strtolower($text);
 
         if ($this->matchesAny($lowerText, [
-            'kubelet error', 'kubelet:', 'pod failed', 'pod evicted', 'pod pending',
-            'docker error', 'docker daemon', 'docker:', 'containerd error',
+            'kubelet error', 'pod failed', 'pod evicted', 'pod pending',
+            'docker error', 'docker daemon error', 'containerd error',
             'crashloopbackoff', 'imagepullbackoff', 'image pull failed',
-            'k8s error', 'kubernetes error', 'kube-', 'etcd error',
+            'k8s error', 'kubernetes error', 'etcd error',
             'scheduler error', 'deployment failed', 'replicaset error',
             'helm error', 'pvc error', 'ingress error', 'crictl error',
-            'node not ready', 'node out of', 'cordon', 'drain',
-            'container killed', 'container exited', 'container restart',
-            'pod terminating', 'pod deleting', 'evicting pod',
-            'crio error', 'containerd:', 'podman error',
-            'docker-compose', 'docker swarm', 'kustomize',
-            'istio error', 'envoy error', 'service mesh',
-            'kubeadm', 'minikube', 'kubeproxy',
-            'runc error', 'registry error', 'pull image',
-            'create container', 'start container', 'stop container',
-            'devicemapper', 'overlay2', 'cgroup', 'namespace',
+            'node not ready', 'node out of',
+            'container killed', 'container exited with error', 'container restart',
+            'pod terminating', 'evicting pod',
+            'crio error', 'podman error',
+            'istio error', 'envoy error',
+            'runc error', 'registry error',
+            'cgroup memory limit', 'cgroup cpu limit',
         ])) {
             return 'container';
         }
 
         if ($this->matchesAny($lowerText, [
-            'ec2 error', 'ec2:', 'instance terminated', 'instance stopped',
-            'aws error', 'aws:', 's3 error', 's3:',
-            'dynamodb', 'rds error', 'lambda error',
-            'azure error', 'azure:', 'gcp error', 'gcp:',
-            'cloudformation', 'cloudwatch', 'route53',
-            'vpc error', 'elb error', 'alb error',
-            'eks cluster', 'eks error', 'ecs task',
-            'cloud provider', 'cloud platform',
-            'digitalocean', 'linode', 'vultr',
-            'cloudflare', 'akamai',
-            'terraform', 'ansible',
-            'iam_policy', 'sts_error', 'iam error',
-            's3_error', 's3_timeout',
-            'lightsail', 'heroku', 'render', 'vercel',
-            'netlify', 'elastic beanstalk',
-            'aws', 'azure', 'gcp', 'cloud',
-            'ec2', 's3', 'rds', 'lambda',
-            'vpc', 'subnet', 'security group',
-            'load balancer', 'target group',
-            'health check', 'asg', 'autoscaling',
-            'fargate', 'batch', 'sam',
-            'serverless',
-        ])) {
-            return 'cloud';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'sqlstate', 'sql error', 'sql syntax', 'sql query error',
-            'postgresql', 'postgres error', 'postgres:', 'postgresq',
-            'mysql error', 'mysql:', 'mariadb', 'mongodb', 'mongo',
-            'oracle error', 'sqlite error', 'mssql',
-            'database connection refused', 'database unavailable',
-            'db connection refused', 'db pool',
-            'elasticsearch', 'solr', 'timeseries',
-            'influxdb', 'cassandra', 'cockroachdb',
-            'firestore', 'dynamodb', 'neo4j',
-            'sql timeout', 'query timeout', 'connection pool exhausted',
-            'too many connections', 'max connections',
-            'database deadlock', 'db deadlock', 'lock wait timeout',
-            'constraint violation', 'unique constraint', 'foreign key',
-            'db error', 'db constraint', 'db lock', 'db timeout',
-            'mysql_connect', 'postgres_connect', 'sqlstate',
-            'elastic database', 'opensearch', 'redshift',
-            'postgres', 'mysql', 'mariadb',
-        ])) {
-            return 'database';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'ldap error', 'ldap:', 'oauth error', 'oauth:', 'oauth2',
-            'jwt invalid', 'jwt error', 'jwt expired', 'jwt_error',
-            'jwt token', 'jwt validation', 'jwt signature',
-            'session expired', 'session timeout', 'csrf token',
-            'csrf error', 'xss detected', 'xss:', 'sql injection',
-            'authentication error', 'authentication failed',
-            'authorization error', 'authorization failed',
-            'saml error', 'openid error', 'kerberos', 'ntlm',
-            'basic auth', 'bearer token', 'mfa error', 'otp error',
-            'permission_error', 'brute_force', 'ip_blocked',
-            'password_expired', 'account_suspended', 'captcha',
-            'auth failed', 'auth error', 'auth:',
-            'login failed', 'login error', 'login refused',
-            'session invalid', 'session error', 'token expired',
-            'token invalid', 'token error', 'invalid credentials',
-            'wrong password', 'password mismatch', 'unauthorized',
-            'access denied', 'permission denied', 'forbidden',
-            'account locked', 'account disabled', 'rate limit',
-            'authenticatin', 'authoriz', 'loginfailed', 'authetication',
-            'ldap_bind', 'ldap_search', 'gssapi', 'ntlm error',
-            'access_token', 'refresh_token', 'id_token',
-            'api_key', 'apikey error', 'secret key',
-        ])) {
-            return 'auth';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'apache error', 'apache:', 'apache2:',
+            'apache error', 'apache2 error',
             'httpd: error', 'httpd: warning',
-            'apache error', 'suexec', 'script not found',
-            'httpd_worker', 'mod_rewrite', 'mod_ssl',
-            'apr_error', 'worker_mpm', 'prefork',
-            '.htaccess',
+            'suexec error', 'script not found',
+            'httpd_worker error', 'mod_rewrite error', 'mod_ssl error',
+            'apr_error', 'worker_mpm error',
             'apache segfault', 'apache bus error', 'apache child exited',
-            'apache parent child', 'apache scoreboard',
-            'apache mutex', 'apache lock',
-            'apache access', 'apache log',
-            'apache worker process',
+            'apache mutex error', 'apache lock error',
         ])) {
             return 'apache';
         }
 
         if ($this->matchesAny($lowerText, [
-            'kernel panic', 'kernel:', 'panic:', 'panic',
-            'segmentation fault', 'segfault', 'core dumped',
-            'oom killer', 'oom:', 'out of memory', 'kill process',
-            'memory exhausted', 'memory allocation failed',
-            'fatal error', 'fatal:', 'abort', 'abort',
-            'signal 9', 'sigkill', 'sigsegv',
-            'syslog', 'dmesg', 'memory leak',
-            'cpu spike', 'load spike', 'inode',
-            'inode full', 'inode limit', 'mount error',
-            'unmount error', 'process zombie', 'process orphaned',
-            'service crash', 'daemon crash', 'disk error',
-            'io error', 'temperature', 'thermal',
-            'hardware error', 'memory', 'cpu', 'disk', 'storage',
-            'system error', 'system:', 'process killed',
-            'process failed', 'service failed', 'service stopped',
-            'daemon error', 'daemon failed', 'worker error',
-            'worker failed', 'thread error', 'thread:',
-            'init failed', 'bootstrap failed', 'startup failed',
-            'disk full', 'no space left', 'storage full',
-            'inodes', 'too many open files',
-            'file descriptor', 'ulimit', 'memory usage',
-            'cpu usage', 'disk usage', 'load average',
-            'swap', 'heap', 'systemd:', 'eth0:',
-            'resource exhausted', 'resource limit',
-            'coredump', 'cored', 'dumped', 'killed',
-            'sigabrt', 'sigbus', 'sigill', 'sigterm',
-            'fpe', 'float error', 'illop', 'illegal',
-            'bus error', 'alignment error', 'page fault',
-            'vm fault', 'pfault', 'bad page',
-            'generic segfault', 'generic bus error', 'non-apache segfault',
-        ])) {
-            return 'system';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'cache', 'memcached', 'varnish',
-            'opcache', 'apcu', 'xcache', 'wincache',
-            'cache miss', 'cache error', 'cache expired',
-            'cache full', 'cache evicted', 'cache invalidated',
-            'cache unavailable', 'cache read', 'cache write',
-            'redis_cluster', 'redis_sentinel',
-            'memcached_error', 'varnish_error',
-            'nginx_cache', 'ehcache', 'jcache',
-            'cache_key_error', 'cache hit', 'cache missed',
-            'key not found', 'key expired', 'key invalid',
-            'cache key', 'invalid key', 'expired key',
-            'flush failed', 'eviction policy',
-            'LRU', 'FIFO', 'LFU',
-            'redis timeout', 'redis error',
-            'memcached timeout', 'memcached error',
-            'cache timeout', 'cache connection',
-            'redis:', 'redis error', 'redis connection',
-            'apc', 'apcu', 'wincache',
-            'opcache', 'zend', 'accelerator',
-        ])) {
-            return 'cache';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'dns error', 'dns lookup', 'dns:', 'dns_error',
-            'ssl certificate', 'ssl handshake', 'tls handshake',
-            'socket error', 'socket timeout', 'socket closed',
-            'network unreachable', 'network timeout',
-            'host unreachable', 'no route to host',
-            'ssl_verify', 'certificate verify',
-            'icmp', 'ping', 'traceroute',
-            'port closed', 'port blocked', 'firewall',
-            'iptables', 'bandwidth', 'latency', 'packet loss',
-            'vpn error', 'tunnel error', 'dns error',
-            'resolve error', 'ssl error', 'tls error',
-            'connection_refused', 'host_unreachable',
-            'network error', 'network connection',
-            'connection refused', 'connection failed',
-            'connection timeout', 'connection reset',
-            'connection closed', 'broken pipe',
-            'http error', 'http timeout', 'http:',
-            'tcp error', 'tcp:', 'udp error',
-            'remote error', 'remote connection',
-            'network connectivity', 'eof error',
-            'read error', 'write error', 'curl error',
-            'request timeout', 'operation timed out',
-            'timeout exceeded', 'timeout after',
-            'socket', 'connect error', 'bind error',
-            'listen error', 'accept error',
-            'sendmail', 'mailq', 'postqueue',
-            'smtp error', 'smtp:', 'pop3', 'imap',
-            'proxy error', 'proxy timeout',
-            'gateway error', 'route error',
-        ])) {
-            return 'network';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'queue full', 'queue timeout', 'queue error',
-            'job failed', 'job timeout', 'job retry',
-            'worker error', 'worker crashed', 'worker timeout',
-            'dead letter', 'max retries', 'retry exhausted',
-            'sidekiq error', 'celery error', 'resque error',
-            'rabbitmq', 'beanstalkd', 'gearman',
-            'async error', 'async:', 'cron error', 'batch failed',
-            'bullmq', 'bull', 'bee', 'sqs', 'google pubsub',
-            'nsq', 'nats', 'zeromq',
-            'kafka producer', 'kafka consumer',
-            'job timeout', 'worker timeout',
-            'message error', 'consumer error',
-            'publisher error', 'partition error',
-            'offset error', 'queue',
-            'async', 'batch', 'cron',
-            'redis queue', 'kafka',
-            'delayed job', 'background',
-            'message rejected', 'message lost',
-            'backoff', 'retry', 'attempt failed',
-            'exhausted', 'message queue',
-            'task failed', 'task timeout',
-            'scheduled task', 'scheduled job',
-            'background processing', 'worker process',
-            'job queue', 'delayed job',
-            'Activemq', 'activemq', 'artemis',
-            'qpid', 'Stomp', 'stomp',
-        ])) {
-            return 'queue';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'ec2 error', 'ec2:', 'instance terminated', 'instance stopped',
-            'aws error', 'aws:', 's3 error', 's3:',
-            'dynamodb', 'rds error', 'lambda error',
-            'azure error', 'azure:', 'gcp error', 'gcp:',
-            'cloudformation', 'cloudwatch', 'route53',
-            'vpc error', 'elb error', 'alb error',
-            'eks cluster', 'eks error', 'ecs task',
-            'cloud provider', 'cloud platform',
-            'digitalocean', 'linode', 'vultr',
-            'cloudflare', 'akamai',
-            'terraform', 'ansible', 'cloudformation',
-            'iam_policy', 'sts_error', 'iam error',
-            's3_error', 's3_timeout', 'glacier',
-            'backup_error', 'snowball', 'datasync',
-            'eks_cluster', 'ecs_cluster',
-            'lambda_timeout', 'cloudwatch_error',
-            'lightsail', 'heroku', 'render', 'vercel',
-            'netlify', 'elastic beanstalk',
-            'cloud', 'aws', 'azure', 'gcp',
-            'ec2', 's3', 'rds', 'lambda',
-            'instance', 'server terminated',
-            'vpc', 'subnet', 'security group',
-            'load balancer', 'target group',
-            'health check', 'asg', 'autoscaling',
-            'route53', 'cloudwatch', 'iam',
-            'fargate', 'batch', 'sam',
-            'serverless', 'lambda',
-        ])) {
-            return 'cloud';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'nginx error', 'nginx:', 'upstream prematurely',
+            'nginx error', 'upstream prematurely',
             'upstream timed out', 'no live upstreams', 'connect() failed',
             'upstream sent too big', 'client too large body',
-            'worker process exiting', 'ngx_http',
-            'worker_rlimit_nofile', 'proxy_pass', 'fastcgi_pass',
-            'upstream_keepalive', 'ngx_var', 'access_log_error',
-            'error_log', 'upstream error', 'upstream timeout',
-            'upstream connection', 'upstream header',
+            'worker process exiting', 'ngx_http error',
+            'worker_rlimit_nofile exceeded', 'proxy_pass error',
             'fastcgi error', 'scgi error', 'uwsgi error',
             'recv() failed', 'send() failed',
-            'client_body', 'client_header',
             'request entity too large',
-            'proxy error', 'uwsgi',
-            'gunicorn', 'unicorn', 'puma', 'passenger',
-            'nginx upstream', 'nginx backend',
+            'nginx upstream error', 'nginx backend error',
         ])) {
             return 'nginx';
         }
 
         if ($this->matchesAny($lowerText, [
-            'apache error', 'apache:', 'apache2:',
-            'httpd: error', 'httpd: warning',
-            'apache error', 'suexec', 'script not found',
-            'httpd_worker', 'mod_rewrite', 'mod_ssl',
-            'apr_error', 'worker_mpm', 'prefork',
-            '.htaccess',
-            'apache segfault', 'apache bus error', 'apache child exited',
-            'apache parent child', 'apache scoreboard',
-            'apache mutex', 'apache lock',
-            'apache access', 'apache log',
-        ])) {
-            return 'apache';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'api error', 'api timeout', 'api rate limit',
-            'rest error', 'graphql error', 'graphql:',
-            'endpoint error', 'route error', 'middleware error',
-            '500 internal server', '502 bad gateway', '504 gateway timeout',
-            '503 service unavailable', '503',
-            '400 bad request', '404 not found', '405 method not allowed',
-            'webhook failed', 'callback failed', 'api gateway error',
-            'http_client', 'axios', 'rest_api', 'soap_api',
-            'http_502', 'http_503', 'rate_limit', 'throttling',
-            'payload_too_large', 'invalid_json',
-            'schema_validation', 'swagger_error', 'openapi_error',
-            'cors_error', 'timeout_error',
-            'api', 'rest', 'graphql', 'endpoint',
-            'http request', 'http response',
-            'bad request', 'not found', 'method not allowed',
-            'internal error', 'gateway error',
-            'webhook', 'callback', 'integration',
-            'pagination', 'serialization', 'validation error',
-            'request error', 'response error',
-            'invalid request', 'malformed request',
-            'unknown endpoint', 'undefined route',
-            '405', '406', '408', '409', '410', '429',
-            '422', '421', '413', '414', '415', '416',
-        ])) {
-            return 'api';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'smtp error', 'smtp:', 'mail delivery failed',
-            'mail bounced', 'email rejected', 'email:',
-            'sendgrid error', 'ses error', 'mailgun error',
-            'imap error', 'pop3 error', 'SPF', 'DKIM', 'DMARC',
-            'mandrill', 'sendinblue', 'mailchimp',
-            'email_service', 'email error',
-            'deferred', 'delayed', 'smtp_timeout',
-            'dkim_error', 'spf_error', 'recipient_error',
-            'mta error', 'message queue full',
-            'email too large', 'attachment error',
-            'bounce', 'rejected', 'attachment',
-            'email', 'mail', 'smtp', 'imap', 'pop3',
-            'sendgrid', 'ses', 'mailgun', 'postmark',
-            'mail error', 'mailer error',
-            'smtp connect', 'smtp auth',
-        ])) {
-            return 'email';
-        }
-
-        if ($this->matchesAny($lowerText, [
-            'file not found', 'file too', 'file error',
-            'file missing', 'upload failed', 'download failed',
-            'read error', 'write error', 'permission denied',
-            'path not found', 'invalid path',
-            'parse error', 'parse:', 'encoding error',
-            'invalid format', 'unsupported format',
-            'max size exceeded', 'temp file', 'stream error',
-            'checksum', 'md5', 'sha',
-            'pdf error', 'image error', 'json parse',
-            'xml parse', 'csv parse', 'yaml parse',
-            'config error', 'log file',
-            'backup failed', 'restore failed', 'export', 'import',
-            's3_download', 's3_upload', 'gcs', 'azure_blob',
-            'temp_file', 'temp_dir', 'file_lock',
-            'file_permission', 'directory_error',
-            'path_traversal', 'archive_error',
-            'mime_type_error', 'filetype',
-            's3 upload', 's3 download',
-            'blob storage', 'file storage',
-            'file not accessible', 'disk read', 'disk write',
-            'disk error', 'io error',
-            'input file', 'output file',
-            'unable to open', 'cannot open',
-            'failed to open', 'could not open',
-            'ENOENT', 'EACCES', 'EISDIR', 'ENOTDIR',
-            'EBADF', 'EINVAL', 'EIO',
-            'file upload', 'upload file', 'file download',
-            'file too large', 'file size limit',
-        ])) {
-            return 'file';
-        }
-
-if ($this->matchesAny($lowerText, [
-            'cache', 'redis connection', 'memcached', 'varnish',
-            'opcache', 'apcu', 'xcache', 'wincache',
-            'cache miss', 'cache error', 'cache expired',
-            'cache full', 'cache evicted', 'cache invalidated',
-            'cache unavailable', 'cache read', 'cache write',
-            'redis_cluster', 'redis_sentinel',
-            'memcached_error', 'varnish_error',
-            'nginx_cache', 'ehcache', 'jcache',
-            'cache_key_error', 'cache hit', 'cache missed',
-            'key not found', 'key expired', 'key invalid',
-            'cache key', 'invalid key', 'expired key',
-            'flush failed', 'eviction policy',
-            'LRU', 'FIFO', 'LFU',
-            'redis timeout', 'redis error',
-            'memcached timeout', 'memcached error',
-            'cache timeout', 'cache connection',
+            'redis error', 'redis timeout', 'redis connection refused',
+            'redis connection error', 'redis connection lost',
+            'redis connection timeout', 'redis cluster error',
+            'redis sentinel error', 'redis maxmemory',
+            'memcached error', 'memcached timeout', 'memcached connection error',
+            'varnish error', 'varnish_backend_error',
+            'cache miss rate high', 'cache miss rate', 'cache error',
+            'cache expired unexpectedly', 'cache full', 'cache evicted',
+            'cache invalidated', 'cache unavailable', 'cache connection error',
+            'cache timeout', 'cache write failed', 'cache read failed',
+            'cache_key_error', 'cache missed', 'cache eviction rate',
+            'key not found in cache', 'key expired', 'key invalid',
+            'flush failed', 'eviction rate high', 'eviction rate',
+            'apcu error', 'wincache error', 'opcache error',
+            'zend accelerator error',
+            'ehcache error', 'jcache error',
         ])) {
             return 'cache';
         }
 
         if ($this->matchesAny($lowerText, [
-            'database', 'db ', 'db:', 'sql',
-            'db connection', 'db error', 'db deadlock',
-            'connection pool', 'too many connections',
-            'max connections', 'database error',
+            'sqlstate', 'sql error', 'sql syntax', 'sql query error',
+            'postgres error', 'mysql error', 'mariadb error', 'mongodb error',
+            'oracle error', 'sqlite error', 'mssql error',
+            'database connection refused', 'database unavailable',
+            'db connection refused', 'db pool exhausted',
+            'elasticsearch error', 'solr error', 'influxdb error',
+            'cassandra error', 'cockroachdb error', 'neo4j error',
+            'sql timeout', 'query timeout', 'connection pool exhausted',
+            'too many connections', 'max connections reached',
+            'database deadlock', 'db deadlock', 'lock wait timeout',
+            'constraint violation', 'foreign key constraint',
+            'db error', 'db constraint', 'db lock', 'db timeout',
+            'opensearch error', 'redshift error',
+            'replication lag', 'database replication',
         ])) {
             return 'database';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'ldap error', 'oauth error', 'oauth2 error',
+            'jwt invalid', 'jwt error', 'jwt expired', 'jwt_error',
+            'jwt validation failed', 'jwt signature',
+            'session expired', 'session timeout', 'csrf error',
+            'xss detected', 'sql injection',
+            'authentication error', 'authentication failed',
+            'authorization error', 'authorization failed',
+            'saml error', 'openid error', 'kerberos error',
+            'mfa error', 'otp error',
+            'permission_error', 'brute_force', 'brute force',
+            'ip_blocked', 'password_expired', 'account_suspended',
+            'auth failed', 'auth error',
+            'login failed', 'login error', 'login refused',
+            'session invalid', 'session error', 'token expired',
+            'token invalid', 'token error', 'invalid credentials',
+            'wrong password', 'password mismatch',
+            'access denied', 'permission denied',
+            'account locked', 'account disabled',
+            'ldap_bind error', 'ldap_search error', 'ntlm error',
+            'apikey error', 'secret key invalid',
+        ])) {
+            return 'auth';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'ec2 error', 'instance terminated unexpectedly', 'instance stopped unexpectedly',
+            'aws error', 's3 error', 's3 upload failed', 's3 download failed',
+            'dynamodb error', 'rds error', 'lambda error',
+            'azure error', 'gcp error',
+            'vpc error', 'elb error', 'alb error',
+            'eks error', 'ecs task failed',
+            'cloudformation error', 'cloudwatch error',
+            'iam error', 'sts_error', 's3_error', 's3_timeout',
+            'lambda_timeout', 'backup_error',
+            'lightsail error', 'heroku error', 'render error', 'vercel error',
+            'netlify error', 'elastic beanstalk error',
+            'autoscaling error', 'asg error',
+            'fargate error', 'batch error',
+            'serverless error',
+        ])) {
+            return 'cloud';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'queue full', 'queue timeout', 'queue error',
+            'job failed', 'job timeout', 'job retry exhausted',
+            'worker crashed', 'worker timeout',
+            'dead letter', 'max retries exceeded', 'retry exhausted',
+            'sidekiq error', 'celery error', 'resque error',
+            'rabbitmq error', 'rabbitmq connection', 'rabbitmq',
+            'beanstalkd error', 'gearman error',
+            'async error', 'cron error', 'batch failed',
+            'bullmq error', 'sqs error', 'google pubsub error',
+            'nsq error', 'nats error', 'zeromq error',
+            'kafka producer error', 'kafka consumer error', 'kafka',
+            'message error', 'consumer error',
+            'publisher error', 'partition error',
+            'offset error',
+            'message rejected', 'message lost',
+            'backoff exhausted', 'message queue error',
+            'task failed', 'task timeout',
+            'scheduled task failed', 'scheduled job failed',
+            'worker process error',
+            'job queue error', 'delayed job error',
+            'activemq error', 'artemis error',
+            'qpid error', 'stomp error',
+        ])) {
+            return 'queue';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'smtp error', 'smtp connection refused', 'smtp connection',
+            'mail delivery failed', 'mail bounced', 'email rejected',
+            'sendgrid error', 'ses error', 'mailgun error',
+            'imap error', 'pop3 error',
+            'spf error', 'dkim error', 'dmarc error',
+            'mandrill error', 'sendinblue error', 'mailchimp error',
+            'email_service error', 'email error',
+            'smtp_timeout', 'dkim_error', 'spf_error', 'recipient_error',
+            'mta error', 'message queue full',
+            'email too large', 'attachment error',
+            'postmark error',
+            'mail error', 'mailer error',
+            'smtp auth error',
+        ])) {
+            return 'email';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'api error', 'api timeout', 'api rate limit exceeded',
+            'api rate limit',
+            'rest error', 'graphql error',
+            'endpoint error', 'route error', 'middleware error',
+            '500 internal server', '502 bad gateway', '504 gateway timeout',
+            '503 service unavailable',
+            'webhook failed', 'callback failed', 'api gateway error',
+            'http_502', 'http_503', 'rate_limit exceeded', 'rate limit exceeded',
+            'throttling', 'payload_too_large', 'invalid_json',
+            'schema_validation error', 'swagger_error', 'openapi_error',
+            'cors_error', 'timeout_error',
+            'bad request', 'method not allowed',
+            'internal error', 'gateway error',
+            'validation error',
+            'request error', 'response error',
+            'invalid request', 'malformed request',
+            'unknown endpoint', 'undefined route',
+        ])) {
+            return 'api';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'file not found', 'file too large', 'file error',
+            'file missing', 'upload failed', 'download failed',
+            'read error', 'write error',
+            'path not found', 'invalid path',
+            'parse error', 'encoding error',
+            'invalid format', 'unsupported format',
+            'max size exceeded', 'stream error',
+            'pdf error', 'image error', 'json parse error',
+            'xml parse error', 'csv parse error', 'yaml parse error',
+            'config error',
+            'backup failed', 'restore failed', 'export failed', 'import failed',
+            'file_lock error', 'file_permission error', 'directory_error',
+            'path_traversal', 'archive_error',
+            'mime_type_error',
+            'file not accessible', 'disk read error', 'disk write error',
+            'unable to open', 'cannot open',
+            'failed to open', 'could not open',
+            'ENOENT', 'EACCES', 'EISDIR', 'ENOTDIR',
+            'EBADF', 'EINVAL', 'EIO',
+            'file upload failed', 'file download failed',
+            'file size limit exceeded',
+        ])) {
+            return 'file';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'kernel panic', 'kernel: error', 'panic:',
+            'segmentation fault', 'segfault', 'core dumped',
+            'oom killer', 'oom:', 'out of memory', 'kill process',
+            'memory exhausted', 'memory allocation failed',
+            'fatal error', 'fatal:',
+            'signal 9', 'sigkill', 'sigsegv',
+            'memory leak detected',
+            'cpu spike detected', 'cpu usage', 'load spike',
+            'inode full', 'inode limit reached', 'mount error',
+            'unmount error', 'process zombie', 'process orphaned',
+            'service crash', 'daemon crash', 'disk error',
+            'io error', 'temperature critical', 'thermal throttling',
+            'hardware error',
+            'system error', 'process killed',
+            'process failed', 'service failed', 'service stopped unexpectedly',
+            'daemon error', 'daemon failed', 'worker error',
+            'worker failed', 'thread error',
+            'init failed', 'bootstrap failed', 'startup failed',
+            'disk full', 'no space left', 'storage full',
+            'inodes exhausted', 'too many open files',
+            'file descriptor limit', 'ulimit exceeded',
+            'resource exhausted', 'resource limit exceeded',
+            'coredump', 'dumped', 'killed',
+            'sigabrt', 'sigbus', 'sigill', 'sigterm',
+            'fpe', 'float error', 'bus error', 'alignment error',
+            'page fault', 'vm fault', 'bad page',
+        ])) {
+            return 'system';
+        }
+
+        if ($this->matchesAny($lowerText, [
+            'dns error', 'dns lookup failed', 'dns_error',
+            'ssl certificate error', 'ssl certificate expiring',
+            'ssl handshake failed', 'tls handshake failed',
+            'socket error', 'socket timeout', 'socket closed unexpectedly',
+            'network unreachable', 'network timeout',
+            'host unreachable', 'no route to host',
+            'ssl_verify failed', 'certificate verify failed',
+            'port closed', 'port blocked', 'firewall blocked',
+            'packet loss detected',
+            'vpn error', 'tunnel error',
+            'resolve error', 'ssl error', 'tls error',
+            'connection_refused', 'host_unreachable',
+            'network error', 'network connection failed',
+            'connection refused', 'connection failed',
+            'connection timeout', 'connection reset',
+            'connection closed unexpectedly', 'broken pipe',
+            'http error', 'http timeout',
+            'tcp error', 'udp error',
+            'remote error', 'remote connection failed',
+            'network connectivity lost', 'eof error',
+            'curl error',
+            'request timeout', 'operation timed out',
+            'timeout exceeded', 'timeout after',
+            'connect error', 'bind error',
+            'listen error', 'accept error',
+            'proxy error', 'proxy timeout',
+            'gateway error', 'route error',
+        ])) {
+            return 'network';
         }
 
         return 'unknown';

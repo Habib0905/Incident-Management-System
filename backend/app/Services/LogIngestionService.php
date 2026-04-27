@@ -6,7 +6,6 @@ use App\Models\Incident;
 use App\Models\IncidentLog;
 use App\Models\Log;
 use App\Models\Server;
-use App\Models\User;
 
 class LogIngestionService
 {
@@ -79,8 +78,6 @@ class LogIngestionService
             ]);
 
             $this->timeline->logCreated($incident);
-
-            User::query()->update(['unread_count' => \Illuminate\Support\Facades\DB::raw('unread_count + 1')]);
 
             return $incident;
         } catch (\Exception $e) {

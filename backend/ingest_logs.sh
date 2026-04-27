@@ -1,5 +1,14 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Load .env if exists
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
 API_URL="${API_URL:-http://localhost:8000/api}"
 LOG_FILE="${LOG_FILE:-storage/logs/sample/production.log}"
 SERVER_NAME="${SERVER_NAME:-Production Web Server}"
@@ -14,14 +23,14 @@ usage() {
     echo "Options:"
     echo "  LOG_FILE=/path/to/logfile     Log file to watch (default: storage/logs/sample/production.log)"
     echo "  SERVER_NAME='Server Name'     Server name in database (default: Production Web Server)"
-    echo "  CHECKPOINT_FILE=/path      Checkpoint file (default: .ingest_offset)"
-    echo "  POLL_INTERVAL=2          Seconds between checks (default: 2)"
+    echo "  CHECKPOINT_FILE=/path         Checkpoint file (default: .ingest_offset)"
+    echo "  POLL_INTERVAL=2               Seconds between checks (default: 2)"
     echo ""
     echo "Commands:"
-    echo "  start                     Start ingestion in background"
-    echo "  stop                      Stop running ingestion"
-    echo "  status                    Check if running"
-    echo "  once                      Run once (no loop)"
+    echo "  start                         Start ingestion in background"
+    echo "  stop                          Stop running ingestion"
+    echo "  status                        Check if running"
+    echo "  once                          Run once (no loop)"
     echo ""
     echo "Examples:"
     echo "  $0 start"
@@ -31,7 +40,7 @@ usage() {
 
 get_server_api_key() {
     local name="$1"
-    cd /home/habib-hussain/projects/LogSystem/log-system
+    cd "$SCRIPT_DIR"
     php artisan tinker --execute="echo App\\Models\\Server::where('name', 'like', '%$name%')->first()?->api_key;" 2>/dev/null
 }
 
@@ -55,14 +64,12 @@ parse_and_send_logs() {
 import re
 import json
 import subprocess
-import os
 
 log_file = "$file"
 start_offset = int("$offset")
 api_url = "$API_URL"
 server_api_key = "$SERVER_API_KEY"
 
-# Read file from offset
 with open(log_file, 'r') as f:
     f.seek(start_offset)
     new_content = f.read()
@@ -70,11 +77,11 @@ with open(log_file, 'r') as f:
 
 if not new_content.strip():
     print("No new logs to process")
+    print(f"CHECKPOINT:{current_pos}")
     exit(0)
 
 lines = new_content.split('\n')
 
-# Pattern: 2026-04-24T10:00:00Z [ERROR] [database] [prod-web-01] message
 pattern = re.compile(r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\s*\[(\w+)\]\s*\[(\w+)\]\s+(.+)$')
 
 for line in lines:
@@ -111,19 +118,12 @@ for line in lines:
     http_code = response.split('\\n')[-1] if response else '000'
     
     if http_code == '201':
-        print(f'[{level.upper()}] Sent: {message[:50]}...')
+        print(f'[{level.upper()}] Sent: {message[:60]}')
     else:
-        print(f'[{level.upper()}] Failed: {message[:50]}... ({http_code})')
+        print(f'[{level.upper()}] Failed: {message[:60]} ({http_code})')
 
-# Save checkpoint
-print(f"SAVED_OFFSET:{current_pos}")
+print(f"CHECKPOINT:{current_pos}")
 PYTHON_SCRIPT
-
-    local result="$?"
-    local saved_offset=$(parse_and_send_logs "$LOG_FILE" "$(load_checkpoint)" | grep "SAVED_OFFSET" | cut -d: -f2)
-    if [ -n "$saved_offset" ]; then
-        save_checkpoint "$saved_offset"
-    fi
 }
 
 ingest_once() {
@@ -145,7 +145,16 @@ ingest_once() {
     fi
     
     echo "Processing new logs from offset $last_offset to $current_size..."
-    parse_and_send_logs "$LOG_FILE" "$last_offset"
+    
+    local output
+    output=$(parse_and_send_logs "$LOG_FILE" "$last_offset")
+    echo "$output" | grep -v "^CHECKPOINT:"
+    
+    local saved_offset
+    saved_offset=$(echo "$output" | grep "^CHECKPOINT:" | cut -d: -f2)
+    if [ -n "$saved_offset" ]; then
+        save_checkpoint "$saved_offset"
+    fi
 }
 
 ingest_loop() {
@@ -220,7 +229,6 @@ fi
 
 if [ -z "$SERVER_API_KEY" ]; then
     echo "Error: Server not found: $SERVER_NAME"
-    get_server_api_key "$SERVER_NAME" 2>/dev/null
     exit 1
 fi
 

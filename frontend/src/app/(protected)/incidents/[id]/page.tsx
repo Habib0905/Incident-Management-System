@@ -2,7 +2,8 @@
 
 import { use, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers, useGenerateSummary } from '@/hooks';
+import { useRouter } from 'next/navigation';
+import { useIncident, useTimeline, useUpdateIncident, useAssignIncident, useAddNote, useMarkAsViewed, useUsers, useGenerateSummary, useDeleteIncident } from '@/hooks';
 import { useAuth } from '@/store/auth';
 import api from '@/lib/api';
 import {
@@ -29,6 +30,7 @@ import {
   ChevronDown,
   Sparkles,
   FileDown,
+  Trash2,
 } from 'lucide-react';
 import { Log, LogsPagination } from '@/types';
 import jsPDF from 'jspdf';
@@ -40,6 +42,7 @@ interface PageProps {
 export default function IncidentDetail({ params }: PageProps) {
   const { id } = use(params);
   const incidentId = parseInt(id);
+  const router = useRouter();
   const { data, isLoading, error, refetch } = useIncident(incidentId);
   const { data: timeline } = useTimeline(incidentId);
   const { user, isAdmin } = useAuth();
@@ -49,6 +52,7 @@ export default function IncidentDetail({ params }: PageProps) {
   const assignIncident = useAssignIncident();
   const addNote = useAddNote();
   const generateSummary = useGenerateSummary();
+  const deleteIncident = useDeleteIncident();
 
   const [showStatusForm, setShowStatusForm] = useState(false);
   const [showAssignForm, setShowAssignForm] = useState(false);
@@ -149,7 +153,7 @@ export default function IncidentDetail({ params }: PageProps) {
       const result = await generateSummary.mutateAsync(incidentId);
       setSummary(result.summary);
     } catch {
-      setSummaryError('Failed to generate summary. Make sure Ollama is running with llama3.2 model.');
+      setSummaryError('Failed to generate summary. API quota may be exceeded — please try again in a moment.');
     }
   }
 
@@ -192,6 +196,14 @@ export default function IncidentDetail({ params }: PageProps) {
       }
       return <span key={i}>{part}</span>;
     });
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('Are you sure you want to delete this incident? This action cannot be undone.')) {
+      return;
+    }
+    await deleteIncident.mutateAsync(incidentId);
+    router.push('/incidents');
   }
 
   return (
@@ -289,6 +301,18 @@ export default function IncidentDetail({ params }: PageProps) {
                   <Sparkles className="h-4 w-4" />
                   AI Summarize
                 </Button>
+                {isAdmin && (
+                  <Button
+                    onClick={handleDelete}
+                    disabled={deleteIncident.isPending}
+                    variant="secondary"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
               </div>
 
               {showStatusForm && (

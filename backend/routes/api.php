@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/incidents/{incident}/generate-summary', [IncidentController::class, 'generateSummary']);
     Route::post('/incidents/{incident}/view', [IncidentController::class, 'view']);
     Route::get('/incidents/{incident}/timeline', [IncidentController::class, 'timeline']);
+    Route::delete('/incidents/{incident}', [IncidentController::class, 'destroy']);
 
     Route::apiResource('incidents', IncidentController::class)->except(['store', 'destroy']);
 });

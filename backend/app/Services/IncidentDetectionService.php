@@ -35,17 +35,18 @@ class IncidentDetectionService
 
     public function analyze(Log $log): ?array
     {
+        if (!in_array($log->log_level, ['error', 'warn'])) {
+            return null;
+        }
+
         $source = $log->source ?? 'unknown';
 
         if ($source === 'unknown') {
-            if ($log->log_level === 'error') {
-                return [
-                    'type' => 'general',
-                    'severity' => 'medium',
-                    'title' => $this->buildTitleFromMessage($log->message),
-                ];
-            }
-            return null;
+            return [
+                'type' => 'general',
+                'severity' => 'medium',
+                'title' => $this->buildTitleFromMessage($log->message),
+            ];
         }
 
         return [

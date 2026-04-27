@@ -58,4 +58,8 @@ export const incidentService = {
     const response = await api.get<{ unread_count: number }>('/me/unread-count');
     return response.data.unread_count;
   },
+
+  async delete(id: number): Promise<void> {
+    await api.delete(`/incidents/${id}`);
+  },
 };
