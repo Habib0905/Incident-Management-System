@@ -257,7 +257,7 @@ export default function UsersPage() {
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        {user.role !== 'admin' && (
+                        {user.id !== currentUser?.id && (
                           <button
                             onClick={() => handleDelete(user.id)}
                             disabled={deleteUser.isPending}

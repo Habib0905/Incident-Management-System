@@ -35,10 +35,10 @@ class UserController extends Controller
         return response()->json(['user' => $user], 201);
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
-        if ($user->isAdmin()) {
-            return response()->json(['error' => 'Cannot delete admin users'], 403);
+        if ($user->id === $request->user()->id) {
+            return response()->json(['error' => 'Cannot delete your own account'], 403);
         }
 
         $user->delete();
