@@ -1,4 +1,4 @@
-FROM php:8.3-cli-alpine
+FROM php:8.4-cli-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -11,21 +11,18 @@ RUN apk add --no-cache \
     bash
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql mbstring xml ctype json
+RUN docker-php-ext-install pdo_pgsql
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 WORKDIR /app
 
-# Copy dependency files first (for layer caching)
-COPY composer.json composer.lock ./
-
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
-
-# Copy application code
+# Copy all application code
 COPY . .
+
+# Install dependencies (ignore platform req since lock file may be from PHP 8.4 host)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --ignore-platform-req=php
 
 # Set permissions
 RUN chmod +x docker-entrypoint.sh

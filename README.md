@@ -24,47 +24,25 @@ A full-stack **Log-Based Incident Management System** that automatically ingests
 | AI | Google Gemini 2.5 Flash-Lite |
 | Log Ingestion | Shell script + Python 3 |
 
-## Quick Start (Docker)
-
-The fastest way to run the entire project:
-
-```bash
-# 1. Clone the repository
-git clone <your-repo-url>
-cd Incident-Management-System
-
-# 2. Set your AI API key (optional, for AI summaries)
-export AI_API_KEY=your-gemini-api-key
-
-# 3. Start everything
-docker compose up --build
-```
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| PostgreSQL | localhost:5432 |
-
-### Demo Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@example.com | password |
-| Engineer | john@example.com | password |
-| Engineer | jane@example.com | password |
-
-## Manual Setup (Without Docker)
+## Setup
 
 ### Prerequisites
 
 - PHP 8.3+
+- Composer
 - PostgreSQL
 - Node.js 20+
-- Composer
 - Python 3 (for log ingestion)
 
-### Backend
+### 1. Database
+
+Create the PostgreSQL database:
+
+```bash
+psql -U postgres -c "CREATE DATABASE logsystem;"
+```
+
+### 2. Backend
 
 ```bash
 cd backend
@@ -76,8 +54,7 @@ composer install
 cp .env.example .env
 php artisan key:generate
 
-# Update database credentials in .env
-# DB_CONNECTION=pgsql
+# Edit .env and update DB credentials if different from defaults:
 # DB_HOST=127.0.0.1
 # DB_PORT=5432
 # DB_DATABASE=logsystem
@@ -92,7 +69,7 @@ php artisan db:seed
 php artisan serve
 ```
 
-### Frontend
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -100,14 +77,14 @@ cd frontend
 # Install dependencies
 npm install
 
-# Configure environment
+# Configure environment (backend must be running on port 8000)
 echo 'NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api' > .env.local
 
 # Start the dev server
 npm run dev
 ```
 
-### Log Ingestion
+### 4. Log Ingestion (Optional)
 
 ```bash
 cd backend
@@ -124,6 +101,21 @@ cd backend
 # Stop
 ./ingest_logs.sh stop
 ```
+
+### Access
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+
+### Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@example.com | password |
+| Engineer | john@example.com | password |
+| Engineer | jane@example.com | password |
 
 ## Log Ingestion on Production Servers
 
@@ -169,8 +161,9 @@ It also supports JSON payloads with field aliasing (Winston, Python, Serilog, Lo
 │   │   ├── Http/Controllers/Api/   # API controllers
 │   │   ├── Models/                 # Eloquent models
 │   │   └── Services/               # Business logic services
-│   ├── database/migrations/        # Database schema
-│   ├── database/seeders/           # Demo data
+│   ├── database/
+│   │   ├── migrations/             # Database schema
+│   │   └── seeders/                # Demo data seeder
 │   ├── routes/api.php              # API routes
 │   └── ingest_logs.sh              # Log ingestion script
 ├── frontend/                # Next.js frontend
@@ -182,9 +175,7 @@ It also supports JSON payloads with field aliasing (Winston, Python, Serilog, Lo
 │   │   ├── store/                  # Zustand auth store
 │   │   └── types/                  # TypeScript interfaces
 │   └── package.json
-├── log-ingestion/           # Standalone Docker image for production
-├── docker-compose.yml       # Docker orchestration
-└── .env.docker              # Docker environment template
+└── README.md
 ```
 
 ## API Overview
