@@ -1,0 +1,15 @@
+vendor/
+node_modules/
+.env
+.env.local
+.git/
+.idea/
+.vscode/
+*.log
+.ingest_offset
+.ingest_logs.pid
+.ingest_logs.log
+storage/logs/*.log
+!storage/logs/sample/
+bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
