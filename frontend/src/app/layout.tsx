@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body className="h-full antialiased">
+      <body className="h-full antialiased" suppressHydrationWarning>
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
