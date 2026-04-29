@@ -33,6 +33,7 @@ A full-stack **Log-Based Incident Management System** that automatically ingests
 - PostgreSQL
 - Node.js 20+
 - Python 3 (for log ingestion)
+- OS: Linux (For Windows machine WSL is required)
 
 ### 1. Database
 
