@@ -1,0 +1,4 @@
+.env
+.ingest_offset
+.ingest_logs.pid
+.ingest_logs.log

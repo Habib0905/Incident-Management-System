@@ -1,0 +1,22 @@
+[Unit]
+Description=Incident Management Log Ingestion Agent
+After=network.target
+
+[Service]
+Type=simple
+User=habib-hussain
+WorkingDirectory=/home/habib-hussain/projects/Incident-Management-System/Agent
+ExecStart=/bin/bash /home/habib-hussain/projects/Incident-Management-System/Agent/ingest_logs.sh start
+Restart=on-failure
+RestartSec=5
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/local/bin
+
+# Load Agent .env variables
+EnvironmentFile=/home/habib-hussain/projects/Incident-Management-System/Agent/.env
+
+# Logging
+StandardOutput=append:/home/habib-hussain/projects/Incident-Management-System/Agent/.ingest_logs.log
+StandardError=append:/home/habib-hussain/projects/Incident-Management-System/Agent/.ingest_logs.log
+
+[Install]
+WantedBy=multi-user.target

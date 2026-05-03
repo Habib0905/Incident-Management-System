@@ -10,38 +10,33 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 fi
 
 API_URL="${API_URL:-http://localhost:8000/api}"
-LOG_FILE="${LOG_FILE:-storage/logs/sample/production.log}"
-SERVER_NAME="${SERVER_NAME:-Production Web Server}"
-CHECKPOINT_FILE="${CHECKPOINT_FILE:-.ingest_offset}"
+LOG_FILE="${LOG_FILE:-$SCRIPT_DIR/../Application/logs/sample/production.log}"
+SERVER_API_KEY="${SERVER_API_KEY:-}"
+CHECKPOINT_FILE="${CHECKPOINT_FILE:-$SCRIPT_DIR/.ingest_offset}"
 POLL_INTERVAL="${POLL_INTERVAL:-2}"
 
-PID_FILE="${PID_FILE:-.ingest_logs.pid}"
+PID_FILE="${PID_FILE:-$SCRIPT_DIR/.ingest_logs.pid}"
 
 usage() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
-    echo "  LOG_FILE=/path/to/logfile     Log file to watch (default: storage/logs/sample/production.log)"
-    echo "  SERVER_NAME='Server Name'     Server name in database (default: Production Web Server)"
-    echo "  CHECKPOINT_FILE=/path         Checkpoint file (default: .ingest_offset)"
-    echo "  POLL_INTERVAL=2               Seconds between checks (default: 2)"
+    echo "  API_URL=http://host:port/api      Backend API URL (default: http://localhost:8000/api)"
+    echo "  SERVER_API_KEY=sk_...             Server API key for auth"
+    echo "  LOG_FILE=/path/to/logfile         Log file to watch (default: ../Application/logs/sample/production.log)"
+    echo "  CHECKPOINT_FILE=/path             Checkpoint file (default: .ingest_offset)"
+    echo "  POLL_INTERVAL=2                   Seconds between checks (default: 2)"
     echo ""
     echo "Commands:"
-    echo "  start                         Start ingestion in background"
-    echo "  stop                          Stop running ingestion"
-    echo "  status                        Check if running"
-    echo "  once                          Run once (no loop)"
+    echo "  start                             Start ingestion in background"
+    echo "  stop                              Stop running ingestion"
+    echo "  status                            Check if running"
+    echo "  once                              Run once (no loop)"
     echo ""
     echo "Examples:"
     echo "  $0 start"
-    echo "  LOG_FILE=/var/log/app.log SERVER_NAME='Web Server' $0 start"
+    echo "  SERVER_API_KEY=sk_your_key $0 start"
     echo "  $0 once"
-}
-
-get_server_api_key() {
-    local name="$1"
-    cd "$SCRIPT_DIR"
-    php artisan tinker --execute="echo App\\Models\\Server::where('name', 'like', '%$name%')->first()?->api_key;" 2>/dev/null
 }
 
 load_checkpoint() {
@@ -59,7 +54,7 @@ save_checkpoint() {
 parse_and_send_logs() {
     local file="$1"
     local offset="$2"
-    
+
     python3 << PYTHON_SCRIPT
 import re
 import json
@@ -88,7 +83,7 @@ for line in lines:
     line = line.strip()
     if not line:
         continue
-    
+
     match = pattern.match(line)
     if match:
         timestamp, level, source, message = match.groups()
@@ -97,14 +92,14 @@ for line in lines:
         level = 'info'
         source = 'unknown'
         message = line
-    
+
     payload = {
         'timestamp': timestamp,
         'level': level,
         'source': source,
         'message': message
     }
-    
+
     result = subprocess.run(
         ['curl', '-s', '-w', '\\n%{http_code}', '-X', 'POST', f'{api_url}/logs',
          '-H', 'Content-Type: application/json',
@@ -113,10 +108,10 @@ for line in lines:
         capture_output=True,
         text=True
     )
-    
+
     response = result.stdout.strip()
     http_code = response.split('\\n')[-1] if response else '000'
-    
+
     if http_code == '201':
         print(f'[{level.upper()}] Sent: {message[:60]}')
     else:
@@ -129,27 +124,27 @@ PYTHON_SCRIPT
 ingest_once() {
     local current_size
     local last_offset
-    
+
     current_size=$(stat -c%s "$LOG_FILE" 2>/dev/null)
-    
+
     if [ -z "$current_size" ]; then
         echo "Error: Cannot read log file: $LOG_FILE"
         return 1
     fi
-    
+
     last_offset=$(load_checkpoint)
-    
+
     if [ "$current_size" -le "$last_offset" ]; then
         echo "No new logs (file size: $current_size, offset: $last_offset)"
         return 0
     fi
-    
+
     echo "Processing new logs from offset $last_offset to $current_size..."
-    
+
     local output
     output=$(parse_and_send_logs "$LOG_FILE" "$last_offset")
     echo "$output" | grep -v "^CHECKPOINT:"
-    
+
     local saved_offset
     saved_offset=$(echo "$output" | grep "^CHECKPOINT:" | cut -d: -f2)
     if [ -n "$saved_offset" ]; then
@@ -160,10 +155,9 @@ ingest_once() {
 ingest_loop() {
     echo "Starting log ingestion..."
     echo "Watching: $LOG_FILE"
-    echo "Server: $SERVER_NAME"
     echo "Poll interval: ${POLL_INTERVAL}s"
     echo "---"
-    
+
     while true; do
         ingest_once
         sleep "$POLL_INTERVAL"
@@ -179,16 +173,16 @@ start_daemon() {
         fi
         rm -f "$PID_FILE"
     fi
-    
+
     (
-        ingest_loop >> .ingest_logs.log 2>&1
+        ingest_loop >> "$SCRIPT_DIR/.ingest_logs.log" 2>&1
     ) &
     BG_PID=$!
     sleep 1
     echo "$BG_PID" > "$PID_FILE"
-    
+
     echo "Started with PID $BG_PID"
-    echo "Log file: .ingest_logs.log"
+    echo "Watching: $LOG_FILE"
 }
 
 stop_daemon() {
@@ -224,11 +218,7 @@ check_status() {
 }
 
 if [ -z "$SERVER_API_KEY" ]; then
-    SERVER_API_KEY=$(get_server_api_key "$SERVER_NAME")
-fi
-
-if [ -z "$SERVER_API_KEY" ]; then
-    echo "Error: Server not found: $SERVER_NAME"
+    echo "Error: SERVER_API_KEY not set. Create .env or export SERVER_API_KEY"
     exit 1
 fi
 

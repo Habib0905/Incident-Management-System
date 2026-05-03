@@ -33,7 +33,7 @@ A full-stack **Log-Based Incident Management System** that automatically ingests
 - PostgreSQL
 - Node.js 20+
 - Python 3 (for log ingestion)
-- OS: Linux (For Windows machine WSL is required)
+- OS: Linux (WSL required on Windows)
 
 ### 1. Database
 
@@ -85,10 +85,16 @@ echo 'NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api' > .env.local
 npm run dev
 ```
 
-### 4. Log Ingestion (Optional)
+### 4. Log Ingestion Agent
 
 ```bash
-cd backend
+cd Agent
+
+# Configure environment
+cp .env.example .env
+
+# Edit .env and set your SERVER_API_KEY (from seed data or admin panel):
+# SERVER_API_KEY=sk_demo_server_123456789012345678901234567890123456789
 
 # Start the log watcher in the background
 ./ingest_logs.sh start
@@ -101,6 +107,17 @@ cd backend
 
 # Stop
 ./ingest_logs.sh stop
+```
+
+### 5. Application Log Simulator (Demo)
+
+```bash
+cd Application
+
+# Start the simulator (writes realistic logs continuously)
+./simulate_app.sh
+
+# Press Ctrl+C to stop
 ```
 
 ### Access
@@ -118,40 +135,18 @@ cd backend
 | Engineer | john@example.com | password |
 | Engineer | jane@example.com | password |
 
-## Log Ingestion on Production Servers
+## Log Format
 
-For production, run `ingest_logs.sh` directly on the target server (no Docker needed):
-
-```bash
-# Copy the script to your target server
-scp backend/ingest_logs.sh user@target-server:/opt/log-ingestion/
-
-# Configure and run
-API_URL=https://ims.yourcompany.com/api \
-SERVER_API_KEY=sk_your_server_api_key \
-LOG_FILE=/var/log/app.log \
-/opt/log-ingestion/ingest_logs.sh start
-```
-
-The script only requires `bash`, `python3`, and `curl` — available on most Linux distributions.
-
-### Log Format
-
-The script expects logs in this format:
+The ingestion agent expects logs in this format:
 
 ```
 2026-04-28T12:00:00Z [ERROR] [database] Connection pool exhausted
 ```
 
-It also supports JSON payloads with field aliasing (Winston, Python, Serilog, Log4j formats):
+It also supports unstructured lines (parsed as `info` level, `unknown` source):
 
-```json
-{
-  "msg": "Connection refused",
-  "severity": "err",
-  "time": "2026-04-28T12:00:00Z",
-  "service": "api-gateway"
-}
+```
+Some random error message without a timestamp
 ```
 
 ## Project Structure
@@ -165,8 +160,7 @@ It also supports JSON payloads with field aliasing (Winston, Python, Serilog, Lo
 │   ├── database/
 │   │   ├── migrations/             # Database schema
 │   │   └── seeders/                # Demo data seeder
-│   ├── routes/api.php              # API routes
-│   └── ingest_logs.sh              # Log ingestion script
+│   └── routes/api.php              # API routes
 ├── frontend/                # Next.js frontend
 │   ├── src/
 │   │   ├── app/                    # Pages (App Router)
@@ -176,6 +170,15 @@ It also supports JSON payloads with field aliasing (Winston, Python, Serilog, Lo
 │   │   ├── store/                  # Zustand auth store
 │   │   └── types/                  # TypeScript interfaces
 │   └── package.json
+├── Agent/                   # Log ingestion agent
+│   ├── ingest_logs.sh              # Standalone log watcher
+│   └── .env.example                # Agent configuration template
+├── Application/             # Simulated application (for demo)
+│   ├── simulate_app.sh             # Generates realistic application logs
+│   └── logs/
+│       └── sample/
+│           └── production.log      # Log file watched by Agent
+├── docker-compose.yml       # Docker orchestration (optional)
 └── README.md
 ```
 
@@ -213,19 +216,26 @@ All endpoints except login and log ingestion require a Sanctum Bearer token. Log
 ## Architecture
 
 ```
-┌──────────────┐     HTTP POST      ┌──────────────┐
-│ Target Server│ ──────────────────►│   Backend    │
-│ (logs)       │   ingest_logs.sh   │   (Laravel)  │
-└──────────────┘                    └──────┬───────┘
-                                           │
-                                    ┌──────┴───────┐
-                                    │  PostgreSQL  │
-                                    └──────────────┘
-                                           ▲
-┌──────────────┐     HTTP GET       ┌──────┴───────┐
-│   Browser    │ ◄─────────────────►│   Frontend   │
-│  (Dashboard) │   localhost:3000   │   (Next.js)  │
-└──────────────┘                    └──────────────┘
+┌──────────────────┐     writes logs      ┌──────────────────┐
+│   Application    │ ────────────────────►│  production.log  │
+│ (simulate_app.sh)│                      │  (log file)      │
+└──────────────────┘                      └────────┬─────────┘
+                                                   │
+                                            polls every 2s
+                                                   ▼
+┌──────────────────┐     HTTP POST      ┌──────────────────┐
+│   Backend API    │ ◄──────────────────│      Agent       │
+│   (Laravel)      │   ingest_logs.sh   │ (ingest_logs.sh) │
+└────────┬─────────┘                    └──────────────────┘
+         │
+  ┌──────┴───────┐
+  │  PostgreSQL  │
+  └──────────────┘
+         ▲
+┌────────┴───────┐
+│   Frontend     │
+│   (Next.js)    │
+└────────────────┘
 ```
 
 ## License

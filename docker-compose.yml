@@ -6,8 +6,6 @@ services:
       POSTGRES_DB: logsystem
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    # Port 5432 not exposed to host to avoid conflicts with local PostgreSQL
-    # Backend accesses postgres via Docker internal network (hostname: postgres)
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -34,14 +32,10 @@ services:
       DB_PASSWORD: postgres
       AI_PROVIDER: gemini
       AI_API_KEY: ${AI_API_KEY:-your-gemini-api-key}
-      SERVER_API_KEY: ${SERVER_API_KEY:-sk_demo_server_123456789012345678901234567890123456789}
-      LOG_FILE: /app/storage/logs/sample/production.log
-      API_URL: http://localhost:8000/api
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./backend/storage/logs:/app/storage/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,21 +55,6 @@ services:
     depends_on:
       - backend
     command: npm run dev
-
-  log-ingestion:
-    build:
-      context: ./log-ingestion
-      dockerfile: Dockerfile
-    container_name: ims-log-ingestion
-    environment:
-      API_URL: http://backend:8000/api
-      SERVER_API_KEY: ${SERVER_API_KEY:-sk_demo_server_123456789012345678901234567890123456789}
-      LOG_FILE: /app/logs/sample/production.log
-      POLL_INTERVAL: "2"
-    volumes:
-      - ./backend/storage/logs:/app/logs
-    depends_on:
-      - backend
 
 volumes:
   pgdata:
