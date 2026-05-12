@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useUnreadCount } from '@/hooks';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -143,6 +144,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Header />
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
+      <ChatWidget />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\IncidentController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\ServerController;
@@ -37,6 +38,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/incidents/stats', [IncidentController::class, 'stats']);
 
     Route::apiResource('incidents', IncidentController::class)->except(['store', 'destroy']);
+
+    Route::post('/chat', [ChatController::class, 'sendMessage']);
 });
 
 Route::post('/logs', [LogController::class, 'store']);

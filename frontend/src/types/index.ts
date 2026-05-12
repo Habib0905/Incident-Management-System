@@ -122,3 +122,8 @@ export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
 export type IncidentStatus = 'open' | 'investigating' | 'resolved';
 export type IncidentType = 'database' | 'auth' | 'network' | 'system' | 'general';
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
