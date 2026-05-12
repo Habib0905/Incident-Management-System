@@ -1,6 +1,6 @@
 'use client';
 
-import { useIncidents, useUnreadCount } from '@/hooks';
+import { useIncidents, useUnreadCount, useIncidentStats } from '@/hooks';
 import { useAuth } from '@/store/auth';
 import { Card, CardHeader, CardTitle, CardContent, SeverityBadge, StatusBadge, UnreadBadge } from '@/components/ui';
 import { Clock, CheckCircle, AlertCircle, UserX, Bell, User } from 'lucide-react';
@@ -44,18 +44,9 @@ function StatCard({
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
   const { data: incidents, isLoading } = useIncidents();
-  const { data: unreadCount } = useUnreadCount();
+  const { data: stats, isLoading: statsLoading } = useIncidentStats();
 
-  const stats = {
-    open: incidents?.filter((i) => i.status === 'open').length || 0,
-    investigating: incidents?.filter((i) => i.status === 'investigating').length || 0,
-    resolved: incidents?.filter((i) => i.status === 'resolved').length || 0,
-    unassigned: incidents?.filter((i) => !i.assigned_to).length || 0,
-    assignedToMe: incidents?.filter((i) => i.assigned_to === user?.id && i.status !== 'resolved').length || 0,
-    unread: unreadCount || 0,
-  };
-
-  const recentIncidents = incidents?.slice(0, 10) || [];
+  const recentIncidents = incidents?.incidents?.slice(0, 10) || [];
 
   return (
     <div className="space-y-6">
@@ -69,21 +60,21 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
           title="Open"
-          value={stats.open}
+          value={stats?.open ?? 0}
           icon={AlertCircle}
           color="bg-red-500"
           link="/incidents?status=open"
         />
         <StatCard
           title="Investigating"
-          value={stats.investigating}
+          value={stats?.investigating ?? 0}
           icon={Clock}
           color="bg-amber-500"
           link="/incidents?status=investigating"
         />
         <StatCard
           title="Resolved"
-          value={stats.resolved}
+          value={stats?.resolved ?? 0}
           icon={CheckCircle}
           color="bg-green-500"
           link="/incidents?status=resolved"
@@ -91,7 +82,7 @@ export default function DashboardPage() {
         {isAdmin ? (
           <StatCard
             title="Unassigned"
-            value={stats.unassigned}
+            value={stats?.unassigned ?? 0}
             icon={UserX}
             color="bg-gray-500"
             link="/incidents?filter=unassigned"
@@ -99,7 +90,7 @@ export default function DashboardPage() {
         ) : (
           <StatCard
             title="Assigned to Me"
-            value={stats.assignedToMe}
+            value={stats?.assigned_to_me ?? 0}
             icon={User}
             color="bg-purple-500"
             link="/incidents?filter=assigned_to_me"
@@ -107,7 +98,7 @@ export default function DashboardPage() {
         )}
         <StatCard
           title="Unread"
-          value={stats.unread}
+          value={stats?.unread ?? 0}
           icon={Bell}
           color="bg-blue-500"
           link="/incidents"
@@ -119,7 +110,7 @@ export default function DashboardPage() {
           <CardTitle>Recent Incidents</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading || statsLoading ? (
             <div className="p-8 text-center text-gray-500">Loading...</div>
           ) : recentIncidents.length === 0 ? (
             <div className="p-8 text-center text-gray-500">No incidents found</div>

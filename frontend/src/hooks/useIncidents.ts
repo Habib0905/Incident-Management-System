@@ -1,9 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { incidentService } from '@/services';
-import { Incident, IncidentFilters, LogsPagination } from '@/types';
+import { Incident, IncidentFilters, LogsPagination, IncidentStats } from '@/types';
+
+interface IncidentsResponse {
+  incidents: Incident[];
+  pagination: LogsPagination;
+}
 
 export function useIncidents(filters?: IncidentFilters) {
-  return useQuery({
+  return useQuery<IncidentsResponse>({
     queryKey: ['incidents', filters],
     queryFn: () => incidentService.getAll(filters),
     retry: 1,
@@ -150,6 +155,21 @@ export function useDeleteIncident() {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['incident-stats'] });
     },
+  });
+}
+
+export function useIncidentStats() {
+  return useQuery<IncidentStats>({
+    queryKey: ['incident-stats'],
+    queryFn: () => incidentService.getStats(),
+    retry: 1,
+    retryDelay: 500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: 30000,
+    staleTime: 0,
+    gcTime: 600000,
   });
 }

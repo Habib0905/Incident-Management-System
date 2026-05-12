@@ -37,11 +37,17 @@ class IncidentController extends Controller
             'search' => 'sometimes|string',
             'created_after' => 'sometimes|date',
             'created_before' => 'sometimes|date',
+            'page' => 'sometimes|integer|min:1',
+            'per_page' => 'sometimes|integer|min:1|max:100',
         ]);
 
         $user = $request->user();
+        $page = (int) ($request->get('page') ?? 1);
+        $perPage = min((int) ($request->get('per_page') ?? 20), 100);
 
         $query = $this->filterService->filter($filters);
+        
+        $total = $query->count();
         
         $incidents = $query->leftJoin('incident_views', function ($join) use ($user) {
                 $join->on('incidents.id', '=', 'incident_views.incident_id')
@@ -49,10 +55,42 @@ class IncidentController extends Controller
             })
             ->select('incidents.*', 
                      DB::raw('CASE WHEN incident_views.incident_id IS NOT NULL THEN true ELSE false END as is_viewed'))
-            ->limit(50)
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
             ->get();
 
-        return response()->json(['incidents' => $incidents]);
+        return response()->json([
+            'incidents' => $incidents,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => ceil($total / $perPage),
+            ],
+        ]);
+    }
+
+    public function stats(Request $request)
+    {
+        $user = $request->user();
+
+        $baseQuery = Incident::query();
+
+        $stats = [
+            'open' => (clone $baseQuery)->where('status', 'open')->count(),
+            'investigating' => (clone $baseQuery)->where('status', 'investigating')->count(),
+            'resolved' => (clone $baseQuery)->where('status', 'resolved')->count(),
+            'unassigned' => (clone $baseQuery)->whereNull('assigned_to')->count(),
+            'assigned_to_me' => (clone $baseQuery)->where('assigned_to', $user->id)->where('status', '!=', 'resolved')->count(),
+            'unread' => Incident::whereNotIn('id', function ($query) use ($user) {
+                $query->select('incident_id')
+                    ->from('incident_views')
+                    ->where('user_id', $user->id);
+            })->count(),
+            'total' => (clone $baseQuery)->count(),
+        ];
+
+        return response()->json($stats);
     }
 
     public function myIncidents(Request $request)

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useIncidents } from '@/hooks';
 import { useAuth } from '@/store/auth';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Card,
   CardHeader,
@@ -23,21 +23,31 @@ import {
   EmptyState,
   LoadingSpinner,
 } from '@/components/ui';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { formatRelativeTime } from '@/lib/utils';
 
 export default function IncidentsPage() {
   const { user, isAdmin } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialStatus = searchParams.get('status') || '';
   const initialSeverity = searchParams.get('severity') || '';
   const initialFilter = searchParams.get('filter') || '';
+  const initialPage = parseInt(searchParams.get('page') || '1', 10);
   
-  const { data: incidents, isLoading, isError } = useIncidents({
+  const [page, setPage] = useState(initialPage);
+  const perPage = 20;
+
+  const { data, isLoading, isError } = useIncidents({
     status: initialStatus || undefined,
     severity: initialSeverity || undefined,
+    page,
+    per_page: perPage,
   });
+
+  const incidents = data?.incidents || [];
+  const pagination = data?.pagination;
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatus);
@@ -75,6 +85,15 @@ export default function IncidentsPage() {
     setSeverityFilter('');
     setTypeFilter('');
     setAssignedFilter('');
+    setPage(1);
+    router.push('/incidents');
+  }
+
+  function goToPage(newPage: number) {
+    setPage(newPage);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', newPage.toString());
+    router.push(`/incidents?${params.toString()}`);
   }
 
   return (
@@ -83,7 +102,7 @@ export default function IncidentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Incidents</h1>
           <p className="text-gray-500">
-            {filteredIncidents.length} incident{filteredIncidents.length !== 1 ? 's' : ''}
+            {pagination ? `${pagination.total} total` : `${filteredIncidents.length} incident${filteredIncidents.length !== 1 ? 's' : ''}`}
           </p>
         </div>
       </div>
@@ -249,6 +268,59 @@ export default function IncidentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {pagination && pagination.total_pages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            Showing {(pagination.current_page - 1) * pagination.per_page + 1}–{Math.min(pagination.current_page * pagination.per_page, pagination.total)} of {pagination.total}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="flex items-center gap-1 px-3 py-1.5 border rounded-md text-sm text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+                let pageNum: number;
+                if (pagination.total_pages <= 5) {
+                  pageNum = i + 1;
+                } else if (page <= 3) {
+                  pageNum = i + 1;
+                } else if (page >= pagination.total_pages - 2) {
+                  pageNum = pagination.total_pages - 4 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => goToPage(pageNum)}
+                    className={`w-8 h-8 rounded-md text-sm text-gray-900 ${
+                      page === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= pagination.total_pages}
+              className="flex items-center gap-1 px-3 py-1.5 border rounded-md text-sm text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

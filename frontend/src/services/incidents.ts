@@ -1,10 +1,13 @@
 import api from '@/lib/api';
-import { Incident, IncidentFilters, ActivityLog, LogsPagination } from '@/types';
+import { Incident, IncidentFilters, ActivityLog, LogsPagination, IncidentStats } from '@/types';
 
 export const incidentService = {
-  async getAll(filters?: IncidentFilters): Promise<Incident[]> {
-    const response = await api.get<{ incidents: Incident[] }>('/incidents', { params: filters });
-    return response.data.incidents;
+  async getAll(filters?: IncidentFilters): Promise<{ incidents: Incident[]; pagination: LogsPagination }> {
+    const response = await api.get<{ incidents: Incident[]; pagination: LogsPagination }>('/incidents', { params: filters });
+    return {
+      incidents: response.data.incidents,
+      pagination: response.data.pagination,
+    };
   },
 
   async getById(id: number): Promise<{ incident: Incident; logs: Incident['logs']; logs_pagination?: LogsPagination }> {
@@ -57,6 +60,11 @@ export const incidentService = {
   async getUnreadCount(): Promise<number> {
     const response = await api.get<{ unread_count: number }>('/me/unread-count');
     return response.data.unread_count;
+  },
+
+  async getStats(): Promise<IncidentStats> {
+    const response = await api.get<IncidentStats>('/incidents/stats');
+    return response.data;
   },
 
   async delete(id: number): Promise<void> {

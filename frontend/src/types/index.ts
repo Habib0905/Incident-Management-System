@@ -89,6 +89,16 @@ export interface LogsPagination {
   total_pages: number;
 }
 
+export interface IncidentStats {
+  open: number;
+  investigating: number;
+  resolved: number;
+  unassigned: number;
+  assigned_to_me: number;
+  unread: number;
+  total: number;
+}
+
 export interface AuthResponse {
   user: User;
   token: string;
@@ -104,6 +114,8 @@ export interface IncidentFilters {
   search?: string;
   created_after?: string;
   created_before?: string;
+  page?: number;
+  per_page?: number;
 }
 
 export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
