@@ -13,7 +13,7 @@ export const incidentService = {
   async getById(id: number): Promise<{ incident: Incident; logs: Incident['logs']; logs_pagination?: LogsPagination }> {
     const response = await api.get(`/incidents/${id}`);
     return {
-      incident: response.data.incident,
+      incident: { ...response.data.incident, similar_incidents: response.data.similar_incidents || [] },
       logs: response.data.logs || [],
       logs_pagination: response.data.logs_pagination,
     };

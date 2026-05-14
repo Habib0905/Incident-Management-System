@@ -13,7 +13,8 @@ class LogIngestionService
         private LogNormalizationService $normalizer,
         private IncidentDetectionService $detector,
         private IncidentGroupingService $grouper,
-        private IncidentTimelineService $timeline
+        private IncidentTimelineService $timeline,
+        private SimilarityService $similarity
     ) {}
 
     public function ingest(Server $server, array|string $payload): Log
@@ -78,6 +79,17 @@ class LogIngestionService
             ]);
 
             $this->timeline->logCreated($incident);
+
+            try {
+                $text = $this->similarity->buildIncidentText($incident);
+                $embedding = $this->similarity->computeEmbedding($text);
+                $incident->update([
+                    'embedding' => $embedding,
+                    'last_embedded_at' => now(),
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to compute embedding: ' . $e->getMessage());
+            }
 
             return $incident;
         } catch (\Exception $e) {

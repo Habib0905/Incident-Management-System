@@ -10,6 +10,7 @@ use App\Services\IncidentFilterService;
 use App\Services\IncidentSummaryService;
 use App\Services\IncidentTimelineService;
 use App\Services\IncidentViewService;
+use App\Services\SimilarityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,8 @@ class IncidentController extends Controller
         private IncidentFilterService $filterService,
         private IncidentTimelineService $timelineService,
         private IncidentSummaryService $summaryService,
-        private IncidentViewService $viewService
+        private IncidentViewService $viewService,
+        private SimilarityService $similarityService
     ) {}
 
     public function index(Request $request)
@@ -32,7 +34,9 @@ class IncidentController extends Controller
             'severity' => 'sometimes|in:low,medium,high,critical',
             'server_id' => 'sometimes|exists:servers,id',
             'environment' => 'sometimes|in:production,staging,development',
-            'assigned_to' => 'sometimes|exists:users,id',
+            'assigned_to' => 'sometimes|integer',
+            'exclude_resolved' => 'sometimes|in:1,true',
+            'unassigned' => 'sometimes|in:1,true',
             'type' => 'sometimes|in:database,auth,network,system,general,container,cloud,nginx,apache,api,queue,file,email,cache',
             'search' => 'sometimes|string',
             'created_after' => 'sometimes|date',
@@ -139,6 +143,9 @@ class IncidentController extends Controller
         $totalLogs = $logsQuery->count();
         $logs = $logsQuery->skip(($logsPage - 1) * $logsPerPage)->take($logsPerPage)->get();
 
+        $this->similarityService->ensureEmbedding($incident);
+        $similar = $this->similarityService->findSimilarIncidents($incident);
+
         return response()->json([
             'incident' => $incident,
             'logs' => $logs,
@@ -148,6 +155,7 @@ class IncidentController extends Controller
                 'total' => $totalLogs,
                 'total_pages' => ceil($totalLogs / $logsPerPage),
             ],
+            'similar_incidents' => $similar,
         ]);
     }
 

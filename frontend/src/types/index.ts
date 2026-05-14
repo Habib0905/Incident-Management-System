@@ -53,6 +53,16 @@ export interface Incident {
   creator?: User | null;
   logs?: Log[];
   activityLogs?: ActivityLog[];
+  similar_incidents?: SimilarIncident[];
+}
+
+export interface SimilarIncident {
+  id: number;
+  title: string;
+  type: string;
+  severity: string;
+  assigned_to: number | null;
+  similarity: number;
 }
 
 export interface IncidentLog {
@@ -110,6 +120,8 @@ export interface IncidentFilters {
   server_id?: number;
   environment?: string;
   assigned_to?: number;
+  exclude_resolved?: boolean;
+  unassigned?: boolean;
   type?: string;
   search?: string;
   created_after?: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useIncidents } from '@/hooks';
 import { useAuth } from '@/store/auth';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -39,16 +39,6 @@ export default function IncidentsPage() {
   const [page, setPage] = useState(initialPage);
   const perPage = 20;
 
-  const { data, isLoading, isError } = useIncidents({
-    status: initialStatus || undefined,
-    severity: initialSeverity || undefined,
-    page,
-    per_page: perPage,
-  });
-
-  const incidents = data?.incidents || [];
-  const pagination = data?.pagination;
-
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [severityFilter, setSeverityFilter] = useState(initialSeverity);
@@ -56,35 +46,33 @@ export default function IncidentsPage() {
   const [assignedFilter, setAssignedFilter] = useState(initialFilter);
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredIncidents = useMemo(() => {
-    if (!incidents) return [];
+  const { data, isLoading, isError } = useIncidents({
+    status: statusFilter || undefined,
+    severity: severityFilter || undefined,
+    type: typeFilter || undefined,
+    assigned_to: assignedFilter === 'assigned_to_me' ? user?.id : undefined,
+    exclude_resolved: assignedFilter === 'assigned_to_me' ? true : undefined,
+    unassigned: assignedFilter === 'unassigned' ? true : undefined,
+    search: search || undefined,
+    page,
+    per_page: perPage,
+  });
 
-    return incidents.filter((incident) => {
-      if (search) {
-        const searchLower = search.toLowerCase();
-        if (
-          !incident.title.toLowerCase().includes(searchLower) &&
-          !(incident.summary?.toLowerCase().includes(searchLower))
-        ) {
-          return false;
-        }
-      }
-      if (statusFilter && incident.status !== statusFilter) return false;
-      if (severityFilter && incident.severity !== severityFilter) return false;
-      if (typeFilter && incident.type !== typeFilter) return false;
-      if (assignedFilter === 'assigned_to_me' && (incident.assigned_to !== user?.id || incident.status === 'resolved')) return false;
-      if (assignedFilter === 'unassigned' && incident.assigned_to !== null) return false;
-      return true;
-    });
-  }, [incidents, search, statusFilter, severityFilter, typeFilter, assignedFilter, user]);
+  const incidents = data?.incidents || [];
+  const pagination = data?.pagination;
 
-  const activeFilters = [statusFilter, severityFilter, typeFilter, assignedFilter].filter(Boolean).length;
+  const activeFilters = [statusFilter, severityFilter, typeFilter, assignedFilter, search].filter(Boolean).length;
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, severityFilter, typeFilter, assignedFilter, search]);
 
   function clearFilters() {
     setStatusFilter('');
     setSeverityFilter('');
     setTypeFilter('');
     setAssignedFilter('');
+    setSearch('');
     setPage(1);
     router.push('/incidents');
   }
@@ -102,7 +90,7 @@ export default function IncidentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Incidents</h1>
           <p className="text-gray-500">
-            {pagination ? `${pagination.total} total` : `${filteredIncidents.length} incident${filteredIncidents.length !== 1 ? 's' : ''}`}
+            {pagination ? `${pagination.total} total` : `${incidents.length} incident${incidents.length !== 1 ? 's' : ''}`}
           </p>
         </div>
       </div>
@@ -215,8 +203,8 @@ export default function IncidentsPage() {
             <LoadingSpinner />
           ) : isError ? (
             <div className="p-8 text-center text-red-600">Failed to load incidents</div>
-          ) : filteredIncidents.length === 0 ? (
-            <EmptyState message={incidents?.length === 0 ? 'No incidents yet' : 'No incidents match your filters'} />
+          ) : incidents.length === 0 ? (
+            <EmptyState message={data?.incidents ? 'No incidents match your filters' : 'No incidents yet'} />
           ) : (
             <Table>
               <TableHeader>
@@ -231,7 +219,7 @@ export default function IncidentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredIncidents.map((incident) => (
+                {incidents.map((incident) => (
                   <TableRow key={incident.id}>
                     <TableCell>
                       <UnreadBadge show={!incident.is_viewed} />

@@ -8,6 +8,10 @@ return [
         'base_url' => env('AI_BASE_URL', 'http://localhost:11434'),
     ],
 
+    'similarity_api' => [
+        'url' => env('SIMILARITY_API_URL', 'http://127.0.0.1:8001'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

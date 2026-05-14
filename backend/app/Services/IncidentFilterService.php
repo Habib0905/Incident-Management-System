@@ -27,7 +27,14 @@ class IncidentFilterService
         }
 
         if (!empty($filters['assigned_to'])) {
-            $query->where('assigned_to', $filters['assigned_to']);
+            $query->where('assigned_to', (int) $filters['assigned_to']);
+            if (!empty($filters['exclude_resolved'])) {
+                $query->where('status', '!=', 'resolved');
+            }
+        }
+
+        if (!empty($filters['unassigned'])) {
+            $query->whereNull('assigned_to');
         }
 
         if (!empty($filters['environment'])) {

@@ -14,12 +14,16 @@ class Incident extends Model
         'type',
         'severity',
         'status',
-        'summary'
+        'summary',
+        'embedding',
+        'last_embedded_at',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'last_embedded_at' => 'datetime',
+        'embedding' => 'array',
     ];
 
     public function logs()

@@ -32,7 +32,7 @@ import {
   FileDown,
   Trash2,
 } from 'lucide-react';
-import { Log, LogsPagination } from '@/types';
+import { Log, LogsPagination, SimilarIncident } from '@/types';
 import jsPDF from 'jspdf';
 
 interface PageProps {
@@ -462,6 +462,48 @@ export default function IncidentDetail({ params }: PageProps) {
               )}
             </CardContent>
           </Card>
+
+          {incident.similar_incidents && incident.similar_incidents.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Similar Past Incidents</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-gray-200">
+                  {incident.similar_incidents.map((similar: SimilarIncident) => (
+                    <Link
+                      key={similar.id}
+                      href={`/incidents/${similar.id}`}
+                      className="block p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-blue-600 hover:underline">
+                          #{similar.id}
+                        </span>
+                        <span className="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                          {Math.round(similar.similarity * 100)}% match
+                        </span>
+                        <SeverityBadge severity={similar.severity} />
+                        <StatusBadge status="resolved" />
+                      </div>
+                      <p className="text-sm text-gray-900 mt-1">{similar.title}</p>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {incident.similar_incidents && incident.similar_incidents.length === 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Similar Past Incidents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500 text-center py-4">No similar resolved incidents found.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
